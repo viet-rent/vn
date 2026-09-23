@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VietRent — аренда жилья во Вьетнаме</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fff; color: #222;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        a { text-decoration: none; color: inherit; }
+
+        .flatpickr-calendar { z-index: 200001 !important; }
+
+        .header {
+            flex-shrink: 0;
+            background: white; padding: 16px 40px;
+            border-bottom: 1px solid #ebebeb;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo { font-size: 24px; font-weight: bold; color: #ff385c; }
+        .header-controls .city { font-size: 14px; color: #717171; }
+        .header-controls .city i { margin-right: 6px; color: #ff385c; }
+
+        .main {
+            flex: 1; min-height: 0;
+            display: flex; flex-direction: row;
+            overflow: hidden;
+            transition: opacity 0.3s;
+        }
+        .main.locked {
+            pointer-events: none;
+            opacity: 0.35;
+            user-select: none;
+        }
+
+        .list-panel {
+            width: 380px; min-width: 380px; overflow-y: auto;
+            padding: 16px 8px 16px 20px;
+            background: #fafafa;
+            border-right: 1px solid #ebebeb;
+            display: flex; flex-direction: column; height: 100%;
+        }
+
+        .filters-panel {
+            background: white; border-radius: 12px; padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #ebebeb;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            flex-shrink: 0;
+        }
+
+        .dates-info {
+            display: flex; align-items: center; gap: 6px;
+            background: #fff5f7;
+            border: 1px solid #ffe0e6;
+            border-radius: 8px;
+            padding: 6px 8px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #222;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .dates-info-text {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .dates-info-text strong { font-weight: 600; }
+        .dates-info-text .sep { color: #ccc; margin: 0 2px; }
+        .dates-info .change-dates {
+            flex-shrink: 0;
+            background: white;
+            border: 1px solid #ff385c;
+            color: #ff385c;
+            height: 24px;
+            min-width: 24px;
+            padding: 0 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: background 0.2s, color 0.2s;
+            font-family: inherit;
+        }
+        .dates-info .change-dates:hover { background: #ff385c; color: white; }
+        .dates-info .change-dates i { font-size: 10px; }
+
+        .results-count {
+            font-size: 13px;
+            color: #717171;
+            padding: 0 2px 12px 2px;
+            line-height: 1.4;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 12px;
+        }
+        .results-count strong { color: #222; font-weight: 600; }
+
+        .filters-panel .filter-row {
+            display: flex; gap: 8px; margin-bottom: 10px;
+            flex-wrap: wrap; align-items: center;
+        }
+        .filters-panel .filter-row:last-child { margin-bottom: 0; }
+        .filters-panel select, .filters-panel input {
+            padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px;
+            font-size: 13px; background: white; flex: 1; min-width: 60px;
+            outline: none; transition: border-color 0.2s;
+        }
+        .filters-panel select:focus, .filters-panel input:focus { border-color: #ff385c; }
+        .filters-panel .filter-price-inputs { display: flex; gap: 8px; flex: 2; }
+        .filters-panel .filter-price-inputs input { width: 70px; flex: 1; }
+        .filters-panel .filter-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .filters-panel .btn-filter {
+            padding: 6px 16px; background: #ff385c; color: white;
+            border: none; border-radius: 8px; font-size: 13px;
+            font-weight: 600; cursor: pointer;
+        }
+        .filters-panel .btn-filter:hover { background: #e01e4a; }
+        .filters-panel .btn-reset {
+            padding: 6px 16px; background: #f7f7f7; color: #222;
+            border: 1px solid #ddd; border-radius: 8px; font-size: 13px;
+            font-weight: 600; cursor: pointer;
+        }
+        .filters-panel .btn-reset:hover { background: #ebebeb; }
+        .filters-panel .filter-label {
+            font-size: 13px; font-weight: 600; color: #717171; min-width: 50px;
+        }
+
+        /* === КНОПКА "ПОКАЗАТЬ ДОСТУПНЫЕ / ВСЕ" === */
+        .filter-row-available {
+            margin-top: 8px;
+        }
+        .btn-toggle-available {
+            width: 100%;
+            padding: 7px 12px;
+            background: #f7f7f7;
+            color: #222;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-toggle-available:hover { background: #ebebeb; }
+        .btn-toggle-available i { font-size: 11px; }
+        .btn-toggle-available.active {
+            background: #ff385c;
+            color: white;
+            border-color: #ff385c;
+        }
+        .btn-toggle-available.active:hover { background: #e01e4a; border-color: #e01e4a; }
+
+        .list-container-wrapper {
+            flex: 1; overflow: hidden; position: relative;
+            display: flex; flex-direction: column;
+        }
+        .list-container-wrapper .list-content { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+
+        .listing-card-link { display: block; text-decoration: none; color: inherit; }
+        .listing-card {
+            display: flex; gap: 10px; background: white;
+            border-radius: 12px; padding: 10px; margin-bottom: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            border: 1px solid #ebebeb;
+            transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+        .listing-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .listing-card .image {
+            width: 80px; height: 80px; flex-shrink: 0;
+            border-radius: 8px; overflow: hidden; background: #f0f0f0;
+        }
+        .listing-card .image img { width: 100%; height: 100%; object-fit: cover; }
+        .listing-card .info {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: space-between; min-width: 0;
+        }
+        .listing-card .info .title {
+            font-size: 14px; font-weight: 500; line-height: 1.3;
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .listing-card .info .location {
+            font-size: 12px; color: #717171; margin-top: 3px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .listing-card .info .price { font-size: 15px; font-weight: 600; color: #222; margin-top: 4px; }
+        .listing-card .info .price span { font-weight: 400; font-size: 12px; color: #717171; }
+        .listing-card .info .price-total { font-size: 11px; color: #717171; margin-top: 1px; }
+        .listing-card .info .guests { font-size: 12px; color: #717171; margin-top: 2px; }
+        .listing-card.highlighted { border-color: #ff385c; box-shadow: 0 0 0 2px rgba(255,56,92,0.2); }
+
+        .listing-card-link.disabled { cursor: not-allowed; }
+        .listing-card-link.disabled .listing-card {
+            position: relative; opacity: 0.5; filter: grayscale(0.7);
+            cursor: not-allowed;
+        }
+        .listing-card-link.disabled .listing-card:hover {
+            transform: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .listing-card-link.disabled .listing-card::after {
+            content: "Занято";
+            position: absolute; top: 6px; right: 6px;
+            background: #dc2626; color: white;
+            font-size: 10px; font-weight: 700;
+            padding: 3px 8px; border-radius: 6px;
+            letter-spacing: 0.3px; z-index: 2; white-space: nowrap;
+        }
+
+        .map-panel { flex: 1; height: 100%; background: #e5e5e5; }
+        #map { width: 100%; height: 100%; }
+
+        .leaflet-popup-content-wrapper {
+            padding: 0 !important;
+            border-radius: 14px !important;
+            overflow: hidden !important;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.2) !important;
+        }
+        .leaflet-popup-content {
+            margin: 0 !important;
+            line-height: 1.3 !important;
+            width: 240px !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        }
+        .leaflet-popup-tip {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+        }
+        .leaflet-popup-close-button {
+            width: 28px !important;
+            height: 28px !important;
+            color: #fff !important;
+            font-size: 20px !important;
+            font-weight: 400 !important;
+            padding: 4px 0 0 0 !important;
+            top: 6px !important;
+            right: 6px !important;
+            z-index: 10 !important;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.7) !important;
+            border-radius: 50% !important;
+            background: rgba(0,0,0,0.35) !important;
+            line-height: 20px !important;
+        }
+        .leaflet-popup-close-button:hover {
+            background: rgba(0,0,0,0.55) !important;
+        }
+
+        .custom-popup {
+            display: flex;
+            flex-direction: column;
+        }
+        .custom-popup .popup-img {
+            position: relative;
+            width: 100%;
+            height: 140px;
+            background: #f0f0f0;
+            overflow: hidden;
+        }
+        .custom-popup .popup-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .custom-popup .popup-body {
+            padding: 10px 12px 12px;
+        }
+        .custom-popup .popup-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #222;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .custom-popup .popup-price {
+            font-size: 14px;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 2px;
+        }
+        .custom-popup .popup-price span {
+            font-weight: 400;
+            color: #717171;
+            font-size: 12px;
+        }
+        .custom-popup .popup-pernight {
+            font-size: 12px;
+            color: #717171;
+            margin-bottom: 4px;
+        }
+        .custom-popup .popup-guests {
+            font-size: 12px;
+            color: #717171;
+        }
+        .custom-popup .popup-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #ff385c;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .custom-popup .popup-link:hover {
+            text-decoration: underline;
+        }
+        .custom-popup .popup-busy {
+            display: inline-block;
+            margin-top: 6px;
+            color: #dc2626;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .custom-popup .popup-busy i {
+            margin-right: 4px;
+        }
+
+        .price-marker {
+            background: white; border-radius: 20px; padding: 4px 12px;
+            border: 2px solid #ff385c; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-weight: 600; font-size: 14px; color: #222;
+            white-space: nowrap; font-family: inherit;
+        }
+        .marker-cluster {
+            background-color: rgba(255,56,92,0.9); border-radius: 50%;
+            border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            width: 48px !important; height: 48px !important;
+            line-height: 48px !important; text-align: center;
+            font-weight: 700; font-size: 14px; color: white;
+        }
+        .marker-cluster div {
+            width: 42px !important; height: 42px !important;
+            line-height: 42px !important; margin: 3px !important;
+            background-color: #ff385c; border-radius: 50%;
+            text-align: center; font-weight: 700; font-size: 13px; color: white;
+        }
+        .marker-cluster span { font-weight: 700; font-size: 13px; color: white; }
+        .marker-cluster-small { background-color: rgba(255,56,92,0.85); }
+        .marker-cluster-medium { background-color: rgba(255,56,92,0.9); }
+        .marker-cluster-large { background-color: rgba(220,30,60,0.95); }
+
+        .loading, .no-results { text-align: center; padding: 40px 0; color: #717171; }
+        .loading i, .no-results i {
+            font-size: 32px; margin-bottom: 12px; display: block;
+        }
+        .no-results i { color: #ccc; }
+
+        .progress-bar {
+            width: 100%; height: 4px; background: #f0f0f0; margin: 0 0 12px 0;
+            border-radius: 2px; overflow: hidden; flex-shrink: 0;
+        }
+        .progress-bar .fill {
+            height: 100%; background: #ff385c; width: 0%; transition: width 0.2s;
+        }
+
+        .pagination-wrap {
+            display: flex; justify-content: center; align-items: center;
+            gap: 4px; padding: 8px 0 4px 0; flex-shrink: 0;
+            flex-wrap: wrap; border-top: 1px solid #ebebeb;
+            margin-top: 4px; background: #fafafa;
+        }
+        .pagination-wrap .page-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 32px; height: 32px; padding: 0 6px;
+            border: 1px solid #ddd; border-radius: 6px;
+            background: white; color: #222; font-size: 13px;
+            font-weight: 500; cursor: pointer; line-height: 1;
+        }
+        .pagination-wrap .page-btn:hover:not(.active):not(:disabled) {
+            background: #f0f0f0; border-color: #bbb;
+        }
+        .pagination-wrap .page-btn.active {
+            background: #ff385c; border-color: #ff385c;
+            color: white; cursor: default;
+        }
+        .pagination-wrap .page-btn:disabled {
+            opacity: 0.4; cursor: not-allowed; background: #f7f7f7;
+        }
+        .pagination-wrap .page-btn.arrow { font-size: 14px; min-width: 34px; }
+        .pagination-wrap .page-btn.dots {
+            border: none; background: transparent;
+            cursor: default; min-width: 20px; color: #717171;
+        }
+        .pagination-wrap .page-info {
+            font-size: 12px; color: #717171; margin: 0 6px; white-space: nowrap;
+        }
+
+        .date-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26,26,46,0.55);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 100000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px 16px;
+            overflow-y: auto;
+        }
+        .date-modal-overlay.show { display: flex; }
+        .date-modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 560px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            position: relative;
+        }
+        .date-modal-content .modal-icon {
+            font-size: 40px; color: #ff385c; margin-bottom: 8px;
+        }
+        .date-modal-content h2 {
+            font-size: 24px; font-weight: 600; margin-bottom: 8px;
+        }
+        .date-modal-content .modal-subtitle {
+            color: #717171; margin-bottom: 20px; font-size: 14px;
+        }
+        .date-modal-inputs {
+            display: flex; gap: 16px; margin-bottom: 12px;
+            position: relative;
+        }
+        .date-modal-inputs > div { flex: 1; text-align: left; min-width: 0; }
+        .date-modal-inputs label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: #717171; margin-bottom: 6px; text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .date-modal-inputs input {
+            width: 100%; padding: 14px 16px;
+            border: 1px solid #ddd; border-radius: 12px;
+            font-size: 15px; outline: none; cursor: pointer;
+            transition: border-color 0.2s; background: white;
+            font-family: inherit;
+        }
+        .date-modal-inputs input:focus,
+        .date-modal-inputs input.active { border-color: #ff385c; }
+        .date-modal-nights {
+            font-size: 13px; color: #717171; margin-bottom: 20px;
+            min-height: 18px; font-weight: 500;
+        }
+        .modal-guests-block {
+            text-align: left;
+            border: 1px solid #ebebeb;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        .modal-guests-block h3 {
+            font-size: 13px; font-weight: 600; color: #717171;
+            text-transform: uppercase; letter-spacing: 0.3px;
+            margin-bottom: 12px;
+        }
+        .guest-category {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .guest-category:last-of-type { border-bottom: none; }
+        .guest-category .label {
+            font-size: 15px; color: #222;
+        }
+        .guest-category .label small {
+            display: block; font-size: 12px; color: #999;
+        }
+        .counter { display: flex; align-items: center; gap: 12px; }
+        .counter button {
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 1px solid #ddd; background: white;
+            font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #222; transition: background 0.15s, border-color 0.15s;
+            font-family: inherit;
+            line-height: 1;
+        }
+        .counter button:hover:not(:disabled) { border-color: #ff385c; background: #fff5f7; }
+        .counter button:disabled {
+            opacity: 0.4; cursor: not-allowed;
+            border-color: #ddd; background: #f7f7f7;
+        }
+        .counter span {
+            min-width: 20px; text-align: center;
+            font-size: 16px; font-weight: 500;
+        }
+        .modal-pets {
+            display: flex; align-items: center; gap: 10px;
+            margin-top: 12px; padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .modal-pets input[type="checkbox"] {
+            width: 20px; height: 20px; accent-color: #ff385c; cursor: pointer;
+        }
+        .modal-pets span {
+            font-size: 15px; cursor: pointer; color: #222;
+        }
+        #modalApplyBtn {
+            width: 100%; padding: 16px;
+            background: #ff385c; color: white; border: none;
+            border-radius: 12px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+            font-family: inherit;
+        }
+        #modalApplyBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #modalApplyBtn:hover:not(:disabled) { background: #e01e4a; }
+
+        .dates-loading-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9000;
+            display: none;
+            align-items: center; justify-content: center;
+            flex-direction: column; gap: 12px;
+        }
+        .dates-loading-overlay.show { display: flex; }
+        .dates-loading-overlay .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #eee; border-top-color: #ff385c;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        .dates-loading-overlay span { font-size: 14px; color: #555; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .chat-fab {
+            position: fixed; bottom: 30px; right: 30px;
+            width: 68px; height: 68px; border-radius: 50%;
+            background: linear-gradient(135deg, #ff385c, #e01e4a);
+            color: white; border: none;
+            box-shadow: 0 8px 28px rgba(255,56,92,0.5);
+            font-size: 32px; cursor: pointer; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.25s, box-shadow 0.3s;
+        }
+        .chat-fab:hover { transform: scale(1.12) rotate(-4deg); }
+        .chat-fab .badge {
+            position: absolute; top: -4px; right: -4px;
+            background: #ff2d55; color: white; border-radius: 50%;
+            min-width: 26px; height: 26px; padding: 0 6px;
+            font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid white;
+        }
+        .chat-fab .badge.hidden { display: none; }
+
+        .chat-toast {
+            position: fixed; top: 24px; right: 24px;
+            background: rgba(26,26,46,0.95);
+            backdrop-filter: blur(8px); color: #fff;
+            padding: 18px 24px; border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+            font-size: 15px; z-index: 99999; max-width: 400px;
+            display: flex; align-items: center; gap: 16px;
+            transform: translateX(calc(100% + 40px));
+            opacity: 0; transition: transform 0.5s, opacity 0.4s;
+            border-left: 5px solid #ff385c;
+            pointer-events: none; cursor: pointer;
+        }
+        .chat-toast.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
+        .chat-toast .icon { font-size: 30px; }
+        .chat-toast .content { flex: 1; }
+        .chat-toast .title { font-weight: 600; margin-bottom: 2px; }
+        .chat-toast .desc { font-size: 14px; opacity: 0.85; }
+        .chat-toast .close {
+            background: rgba(255,255,255,0.1); border: none;
+            color: #ccc; font-size: 20px; cursor: pointer;
+            padding: 4px 8px; border-radius: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; }
+            .logo { font-size: 20px; }
+            .main { flex-direction: column; }
+            .list-panel {
+                width: 100%; min-width: unset;
+                height: 55vh; border-right: none;
+                border-bottom: 1px solid #ebebeb;
+                padding: 8px; overflow: hidden;
+                display: flex; flex-direction: row; gap: 6px;
+            }
+            .filters-panel {
+                order: 2;
+                flex: 0 0 118px;
+                max-width: 118px;
+                padding: 6px 5px;
+                margin-bottom: 0;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            .list-container-wrapper { order: 1; flex: 1; min-width: 0; }
+
+            .filters-panel .filter-label { display: none; }
+
+            .filters-panel select,
+            .filters-panel input {
+                font-size: 10px;
+                padding: 3px 4px;
+                min-width: 0;
+                width: 100%;
+                border-radius: 6px;
+            }
+            .filters-panel .btn-filter,
+            .filters-panel .btn-reset {
+                font-size: 10px;
+                padding: 4px 4px;
+                width: 100%;
+                border-radius: 6px;
+            }
+            .filters-panel .filter-row {
+                margin-bottom: 5px;
+                gap: 3px;
+                flex-wrap: wrap;
+            }
+            .filters-panel .filter-price-inputs {
+                gap: 3px;
+                flex-direction: column;
+            }
+            .filters-panel .filter-actions {
+                margin-top: 5px;
+                gap: 3px;
+                flex-direction: column;
+            }
+
+            .filter-row-available { margin-top: 5px; }
+            .btn-toggle-available {
+                font-size: 10px;
+                padding: 4px 4px;
+                border-radius: 6px;
+                gap: 3px;
+            }
+            .btn-toggle-available i { font-size: 9px; }
+
+            .dates-info {
+                padding: 3px 4px;
+                gap: 3px;
+                font-size: 9px;
+                margin-bottom: 5px;
+                border-radius: 5px;
+                height: 22px;
+            }
+            .dates-info-text {
+                font-size: 9px;
+                line-height: 1;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                letter-spacing: -0.3px;
+            }
+            .dates-info .change-dates {
+                height: 18px;
+                min-width: 18px;
+                padding: 0 4px;
+                font-size: 0;
+                gap: 0;
+                border-radius: 10px;
+            }
+            .dates-info .change-dates i { font-size: 9px; }
+
+            .results-count {
+                font-size: 9px;
+                padding: 0 1px 5px 1px;
+                margin-bottom: 5px;
+                line-height: 1.2;
+                letter-spacing: -0.2px;
+            }
+
+            .map-panel { height: 45vh; width: 100%; flex: none; }
+
+            .leaflet-popup-content { width: 210px !important; }
+            .custom-popup .popup-img { height: 120px; }
+            .custom-popup .popup-body { padding: 8px 10px 10px; }
+            .custom-popup .popup-title { font-size: 13px; }
+
+            .date-modal-overlay { padding: 20px 10px; }
+            .date-modal-content { padding: 20px 14px; border-radius: 18px; }
+            .date-modal-content .modal-icon { font-size: 32px; margin-bottom: 4px; }
+            .date-modal-content h2 { font-size: 19px; margin-bottom: 6px; }
+            .date-modal-content .modal-subtitle { font-size: 12px; margin-bottom: 14px; }
+
+            .date-modal-inputs {
+                flex-direction: row;
+                gap: 6px;
+                margin-bottom: 8px;
+            }
+            .date-modal-inputs label {
+                font-size: 10px;
+                margin-bottom: 3px;
+                letter-spacing: 0;
+            }
+            .date-modal-inputs input {
+                padding: 10px 6px;
+                font-size: 12px;
+                border-radius: 10px;
+                text-align: center;
+            }
+
+            .date-modal-nights {
+                font-size: 11px;
+                margin-bottom: 12px;
+                min-height: 14px;
+            }
+
+            .modal-guests-block {
+                padding: 10px 12px;
+                border-radius: 12px;
+                margin-bottom: 12px;
+            }
+            .modal-guests-block h3 {
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+            .guest-category { padding: 7px 0; }
+            .guest-category .label { font-size: 13px; }
+            .guest-category .label small { font-size: 10px; }
+            .counter { gap: 8px; }
+            .counter button { width: 28px; height: 28px; font-size: 15px; }
+            .counter span { font-size: 14px; min-width: 18px; }
+
+            .modal-pets { margin-top: 8px; padding-top: 8px; }
+            .modal-pets span { font-size: 13px; }
+            .modal-pets input[type="checkbox"] { width: 18px; height: 18px; }
+
+            #modalApplyBtn {
+                padding: 12px;
+                font-size: 14px;
+                border-radius: 10px;
+            }
+
+            .listing-card .image { width: 60px; height: 60px; }
+            .listing-card { padding: 8px; gap: 8px; margin-bottom: 8px; }
+            .listing-card .info .title { font-size: 12px; }
+            .listing-card .info .price { font-size: 13px; }
+            .listing-card .info .price-total { font-size: 10px; }
+            .listing-card .info .guests { font-size: 11px; }
+            .listing-card .info .location { font-size: 11px; }
+
+            .pagination-wrap .page-btn {
+                min-width: 26px; height: 26px; font-size: 11px; padding: 0 4px;
+            }
+            .pagination-wrap .page-btn.arrow { min-width: 28px; }
+            .pagination-wrap .page-info { font-size: 10px; }
+
+            .chat-fab { bottom: 16px; right: 16px; width: 56px; height: 56px; font-size: 26px; }
+
+            .flatpickr-calendar {
+                position: fixed !important;
+                left: 50vw !important;
+                top: 50vh !important;
+                right: auto !important;
+                bottom: auto !important;
+                transform: translate(-50%, -50%) !important;
+                margin: 0 !important;
+                width: 307.875px !important;
+                max-width: calc(100vw - 16px) !important;
+                z-index: 200001 !important;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.35) !important;
+            }
+            .flatpickr-calendar.open {
+                transform: translate(-50%, -50%) !important;
+            }
+            .flatpickr-calendar.arrowTop:before,
+            .flatpickr-calendar.arrowTop:after,
+            .flatpickr-calendar.arrowBottom:before,
+            .flatpickr-calendar.arrowBottom:after {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a href="../" class="logo">🏝️🏠VietRent</a>
+    <div class="header-controls">
+        <span class="city"><i class="fas fa-map-marker-alt"></i>Фукуок, Вьетнам</span>
+    </div>
+</header>
+
+<div class="main locked" id="mainContent">
+    <div class="list-panel" id="listPanel">
+
+        <div class="filters-panel" id="filtersPanel">
+
+            <div class="dates-info" id="datesInfo" style="display:none;">
+                <div class="dates-info-text" id="datesBarText"></div>
+                <button class="change-dates" id="changeDatesBtn" title="Изменить параметры">
+                    <i class="fas fa-pen"></i>
+                </button>
+            </div>
+
+            <div class="results-count" id="resultsCount">Выберите даты</div>
+
+            <div class="filter-row">
+                <span class="filter-label">Сорт.</span>
+                <select id="sortSelect">
+                    <option value="default">По умолч.</option>
+                    <option value="price_asc">Цена ↑</option>
+                    <option value="price_desc">Цена ↓</option>
+                </select>
+            </div>
+            <div class="filter-row">
+                <span class="filter-label">Цена</span>
+                <div class="filter-price-inputs">
+                    <input type="number" id="priceMin" placeholder="от" min="0">
+                    <input type="number" id="priceMax" placeholder="до" min="0">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn-filter" id="applyFilters">Применить</button>
+                <button class="btn-reset" id="resetFilters">Сброс</button>
+            </div>
+
+            <!-- Кнопка переключения: показать только доступные / показать все -->
+            <div class="filter-row filter-row-available">
+                <button class="btn-toggle-available" id="toggleAvailableBtn" type="button">
+                    <i class="fas fa-filter"></i><span id="toggleAvailableText">Показать доступные</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="list-container-wrapper" id="listWrapper">
+            <div class="list-content" id="listContainer"></div>
+            <div class="pagination-wrap" id="paginationWrap"></div>
+        </div>
+    </div>
+
+    <div class="map-panel">
+        <div id="map"></div>
+    </div>
+</div>
+
+<div class="dates-loading-overlay" id="datesLoading">
+    <div class="spinner"></div>
+    <span>Проверяем доступность...</span>
+</div>
+
+<div class="date-modal-overlay" id="dateModal">
+    <div class="date-modal-content">
+        <div class="modal-icon"><i class="fas fa-suitcase-rolling"></i></div>
+        <h2>Параметры поездки</h2>
+        <p class="modal-subtitle">Выберите даты и количество гостей, мы подберём подходящие варианты</p>
+
+        <div class="date-modal-inputs">
+            <div>
+                <label>Заезд</label>
+                <input type="text" id="modalCheckIn" placeholder="дд.мм.гггг" readonly>
+            </div>
+            <div>
+                <label>Выезд</label>
+                <input type="text" id="modalCheckOut" placeholder="дд.мм.гггг" readonly>
+            </div>
+        </div>
+        <div class="date-modal-nights" id="modalNights"></div>
+
+        <div class="modal-guests-block">
+            <h3>Гости</h3>
+
+            <div class="guest-category">
+                <div class="label">Взрослые<small>от 13 лет</small></div>
+                <div class="counter">
+                    <button type="button" data-type="adults" data-dir="-">−</button>
+                    <span id="modalAdultsCount">2</span>
+                    <button type="button" data-type="adults" data-dir="+">+</button>
+                </div>
+            </div>
+
+            <div class="guest-category">
+                <div class="label">Дети<small>2–12 лет</small></div>
+                <div class="counter">
+                    <button type="button" data-type="children" data-dir="-">−</button>
+                    <span id="modalChildrenCount">0</span>
+                    <button type="button" data-type="children" data-dir="+">+</button>
+                </div>
+            </div>
+
+            <div class="guest-category">
+                <div class="label">Младенцы<small>до 2 лет</small></div>
+                <div class="counter">
+                    <button type="button" data-type="infants" data-dir="-">−</button>
+                    <span id="modalInfantsCount">0</span>
+                    <button type="button" data-type="infants" data-dir="+">+</button>
+                </div>
+            </div>
+
+            <label class="modal-pets">
+                <input type="checkbox" id="modalPets">
+                <span>🐾 Домашние животные</span>
+            </label>
+        </div>
+
+        <button id="modalApplyBtn" disabled>Показать объекты</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const PATTAYA_CENTER = [10.2333, 103.9667];
+        const DEFAULT_ZOOM = 11;
+        const ITEMS_PER_PAGE = 20;
+        const MAX_ADULTS = 30;
+        const MAX_CHILDREN = 20;
+        const MAX_INFANTS = 10;
+
+        let allListings = [];
+        let filteredListings = [];
+        let map = null;
+        let clusterGroup = null;
+        let markerMap = {};
+        let currentBounds = null;
+        let highlightedIndex = -1;
+        let pendingHighlightIndex = -1;
+        let selectedObjectIndex = -1;
+        let listUpdateTimeout = null;
+        let visibleListings = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        let isDataLoaded = false;
+
+        // Новое: флаг «показывать только доступные»
+        let showOnlyAvailable = false;
+
+        let searchCheckIn = null;
+        let searchCheckOut = null;
+        let searchAdults = 2;
+        let searchChildren = 0;
+        let searchInfants = 0;
+        let searchPets = false;
+        let allBookingDates = {};
+
+        let modalFpIn = null, modalFpOut = null;
+        let modalCheckInDate = null, modalCheckOutDate = null;
+
+        let draftAdults = 2;
+        let draftChildren = 0;
+        let draftInfants = 0;
+        let draftPets = false;
+
+        const listWrapper = document.getElementById('listWrapper');
+        const listContainer = document.getElementById('listContainer');
+        const resultsCount = document.getElementById('resultsCount');
+        const paginationWrap = document.getElementById('paginationWrap');
+        const sortSelect = document.getElementById('sortSelect');
+        const priceMin = document.getElementById('priceMin');
+        const priceMax = document.getElementById('priceMax');
+        const applyBtn = document.getElementById('applyFilters');
+        const resetBtn = document.getElementById('resetFilters');
+        const datesLoadingEl = document.getElementById('datesLoading');
+        const mainContent = document.getElementById('mainContent');
+        const dateModal = document.getElementById('dateModal');
+        const dateModalContent = dateModal.querySelector('.date-modal-content');
+        const datesInfo = document.getElementById('datesInfo');
+        const datesBarText = document.getElementById('datesBarText');
+        const changeDatesBtn = document.getElementById('changeDatesBtn');
+        const toggleAvailableBtn = document.getElementById('toggleAvailableBtn');
+        const toggleAvailableText = document.getElementById('toggleAvailableText');
+
+        function showDatesLoading(show) {
+            if (datesLoadingEl) datesLoadingEl.classList.toggle('show', show);
+        }
+
+        function pluralize(n, one, few, many) {
+            const m10 = n % 10, m100 = n % 100;
+            if (m10 === 1 && m100 !== 11) return one;
+            if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+            return many;
+        }
+
+        function formatDateYMD(date) {
+            const d = date.getDate(), m = date.getMonth() + 1, y = date.getFullYear();
+            return `${y}-${m < 10 ? '0' + m : m}-${d < 10 ? '0' + d : d}`;
+        }
+
+        function formatDateYMDRu(date) {
+            const d = date.getDate(), m = date.getMonth() + 1, y = date.getFullYear();
+            return `${d < 10 ? '0' + d : d}.${m < 10 ? '0' + m : m}.${y}`;
+        }
+
+        function formatDateShort(date) {
+            const d = date.getDate(), m = date.getMonth() + 1;
+            return `${d < 10 ? '0' + d : d}.${m < 10 ? '0' + m : m}`;
+        }
+
+        function extractListingId(url) {
+            if (!url) return null;
+            const m = url.match(/id\/(\d+)\.html/);
+            return m ? m[1] : null;
+        }
+
+        function buildListingUrl(item) {
+            const base = item.url || '#';
+            if (!searchCheckIn || !searchCheckOut) return base;
+            const sep = base.includes('?') ? '&' : '?';
+            const params = new URLSearchParams();
+            params.set('check_in', formatDateYMD(searchCheckIn));
+            params.set('check_out', formatDateYMD(searchCheckOut));
+            params.set('adults', String(searchAdults));
+            params.set('children', String(searchChildren));
+            params.set('infants', String(searchInfants));
+            params.set('pets', searchPets ? '1' : '0');
+            return `${base}${sep}${params.toString()}`;
+        }
+
+        async function loadBookingDatesForListings(listings) {
+            const uncached = listings
+                .map(item => ({ item, id: extractListingId(item.url) }))
+                .filter(x => x.id && !(x.id in allBookingDates));
+
+            if (!uncached.length) return;
+
+            const BATCH = 25;
+            for (let i = 0; i < uncached.length; i += BATCH) {
+                const batch = uncached.slice(i, i + BATCH);
+                await Promise.all(batch.map(async ({ id }) => {
+                    try {
+                        const resp = await fetch(`dates/${id}.json?t=${Date.now()}`);
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            allBookingDates[id] = Array.isArray(data) ? data : [];
+                        } else {
+                            allBookingDates[id] = [];
+                        }
+                    } catch (e) {
+                        allBookingDates[id] = [];
+                    }
+                }));
+            }
+        }
+
+        function isPropertyAvailable(item, checkIn, checkOut) {
+            const id = extractListingId(item.url);
+            if (!id) return true;
+            const bookings = allBookingDates[id];
+            if (!bookings || !bookings.length) return true;
+
+            const start = new Date(checkIn); start.setHours(0, 0, 0, 0);
+            const end = new Date(checkOut); end.setHours(0, 0, 0, 0);
+
+            for (const b of bookings) {
+                const bStart = new Date(b.check_in + 'T00:00:00');
+                const bEnd = new Date(b.check_out + 'T00:00:00');
+                if (start < bEnd && end > bStart) return false;
+            }
+            return true;
+        }
+
+        function buildCompactParamsString() {
+            if (!searchCheckIn || !searchCheckOut) return '';
+            const nights = Math.round((searchCheckOut - searchCheckIn) / 86400000);
+            const parts = [];
+            parts.push(`${formatDateShort(searchCheckIn)}–${formatDateShort(searchCheckOut)}`);
+            parts.push(`${nights}н`);
+
+            const g = [];
+            g.push(`${searchAdults}в`);
+            if (searchChildren > 0) g.push(`${searchChildren}р`);
+            if (searchInfants > 0)  g.push(`${searchInfants}м`);
+            if (searchPets)         g.push('🐾');
+            parts.push(g.join(' '));
+
+            return parts.join(' · ');
+        }
+
+        function updateDatesBar() {
+            if (!searchCheckIn || !searchCheckOut) {
+                datesInfo.style.display = 'none';
+                return;
+            }
+            datesInfo.style.display = 'flex';
+            datesBarText.textContent = buildCompactParamsString();
+        }
+
+        // Обновление вида кнопки toggle
+        function updateToggleButton() {
+            if (showOnlyAvailable) {
+                toggleAvailableBtn.classList.add('active');
+                toggleAvailableText.textContent = 'Показать все';
+                toggleAvailableBtn.querySelector('i').className = 'fas fa-th-large';
+            } else {
+                toggleAvailableBtn.classList.remove('active');
+                toggleAvailableText.textContent = 'Показать доступные';
+                toggleAvailableBtn.querySelector('i').className = 'fas fa-filter';
+            }
+        }
+
+        function updateModalCounters() {
+            document.getElementById('modalAdultsCount').textContent = draftAdults;
+            document.getElementById('modalChildrenCount').textContent = draftChildren;
+            document.getElementById('modalInfantsCount').textContent = draftInfants;
+            document.getElementById('modalPets').checked = draftPets;
+
+            document.querySelector('button[data-type="adults"][data-dir="-"]').disabled = draftAdults <= 1;
+            document.querySelector('button[data-type="children"][data-dir="-"]').disabled = draftChildren <= 0;
+            document.querySelector('button[data-type="infants"][data-dir="-"]').disabled = draftInfants <= 0;
+
+            document.querySelector('button[data-type="adults"][data-dir="+"]').disabled = draftAdults >= MAX_ADULTS;
+            document.querySelector('button[data-type="children"][data-dir="+"]').disabled = draftChildren >= MAX_CHILDREN;
+            document.querySelector('button[data-type="infants"][data-dir="+"]').disabled = draftInfants >= MAX_INFANTS;
+        }
+
+        function updateNightsLabel() {
+            const nightsEl = document.getElementById('modalNights');
+            const applyBtnM = document.getElementById('modalApplyBtn');
+            if (modalCheckInDate && modalCheckOutDate) {
+                const nights = Math.round((modalCheckOutDate - modalCheckInDate) / 86400000);
+                if (nights > 0) {
+                    nightsEl.textContent = `${nights} ${pluralize(nights, 'ночь', 'ночи', 'ночей')}`;
+                    applyBtnM.disabled = false;
+                    return;
+                }
+            }
+            nightsEl.textContent = '';
+            applyBtnM.disabled = true;
+        }
+
+        function initDateModal() {
+            const ciEl = document.getElementById('modalCheckIn');
+            const coEl = document.getElementById('modalCheckOut');
+            const applyBtnM = document.getElementById('modalApplyBtn');
+
+            const commonOpts = {
+                locale: "ru",
+                dateFormat: "d.m.Y",
+                minDate: "today",
+                static: true,
+                appendTo: dateModalContent,
+                disableMobile: true
+            };
+
+            modalFpIn = flatpickr(ciEl, Object.assign({}, commonOpts, {
+                positionElement: ciEl,
+                onChange: function(selectedDates) {
+                    if (selectedDates.length) {
+                        modalCheckInDate = selectedDates[0];
+                        if (!modalCheckOutDate || modalCheckOutDate <= modalCheckInDate) {
+                            const out = new Date(modalCheckInDate);
+                            out.setDate(out.getDate() + 1);
+                            modalCheckOutDate = out;
+                            modalFpOut.setDate(out, false);
+                        }
+                        modalFpOut.set('minDate', modalCheckInDate);
+                        modalFpOut.open();
+                        updateNightsLabel();
+                    }
+                }
+            }));
+
+            modalFpOut = flatpickr(coEl, Object.assign({}, commonOpts, {
+                positionElement: coEl,
+                onChange: function(selectedDates) {
+                    if (selectedDates.length) {
+                        if (modalCheckInDate && selectedDates[0] <= modalCheckInDate) {
+                            alert('Дата выезда должна быть позже даты заезда');
+                            modalFpOut.setDate(modalCheckOutDate, false);
+                            return;
+                        }
+                        modalCheckOutDate = selectedDates[0];
+                        updateNightsLabel();
+                    }
+                }
+            }));
+
+            dateModalContent.querySelectorAll('.counter button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const type = this.dataset.type;
+                    const dir = this.dataset.dir;
+                    const delta = dir === '+' ? 1 : -1;
+
+                    if (type === 'adults') {
+                        draftAdults = Math.min(MAX_ADULTS, Math.max(1, draftAdults + delta));
+                    } else if (type === 'children') {
+                        draftChildren = Math.min(MAX_CHILDREN, Math.max(0, draftChildren + delta));
+                    } else if (type === 'infants') {
+                        draftInfants = Math.min(MAX_INFANTS, Math.max(0, draftInfants + delta));
+                    }
+                    updateModalCounters();
+                });
+            });
+
+            document.getElementById('modalPets').addEventListener('change', function() {
+                draftPets = this.checked;
+            });
+
+            applyBtnM.addEventListener('click', async function() {
+                if (!modalCheckInDate || !modalCheckOutDate) return;
+                searchCheckIn = modalCheckInDate;
+                searchCheckOut = modalCheckOutDate;
+                searchAdults = draftAdults;
+                searchChildren = draftChildren;
+                searchInfants = draftInfants;
+                searchPets = draftPets;
+
+                try {
+                    localStorage.setItem('searchParams', JSON.stringify({
+                        checkIn:  modalCheckInDate.toISOString(),
+                        checkOut: modalCheckOutDate.toISOString(),
+                        adults:   draftAdults,
+                        children: draftChildren,
+                        infants:  draftInfants,
+                        pets:     draftPets
+                    }));
+                } catch (e) { console.warn('save searchParams error', e); }
+
+                dateModal.classList.remove('show');
+                mainContent.classList.remove('locked');
+                updateDatesBar();
+                await refreshList();
+            });
+
+            let restored = false;
+            try {
+                const savedRaw = localStorage.getItem('searchParams');
+                if (savedRaw) {
+                    const saved = JSON.parse(savedRaw);
+                    if (saved && saved.checkIn && saved.checkOut) {
+                        const ciDate = new Date(saved.checkIn);
+                        const coDate = new Date(saved.checkOut);
+                        const today = new Date(); today.setHours(0, 0, 0, 0);
+
+                        if (!isNaN(ciDate.getTime()) && !isNaN(coDate.getTime())
+                            && ciDate >= today && coDate > ciDate) {
+
+                            modalCheckInDate = ciDate;
+                            modalCheckOutDate = coDate;
+
+                            draftAdults   = (typeof saved.adults === 'number')   ? saved.adults   : 2;
+                            draftChildren = (typeof saved.children === 'number') ? saved.children : 0;
+                            draftInfants  = (typeof saved.infants === 'number')  ? saved.infants  : 0;
+                            draftPets     = !!saved.pets;
+
+                            modalFpIn.setDate(ciDate, false);
+                            modalFpOut.set('minDate', ciDate);
+                            modalFpOut.setDate(coDate, false);
+                            restored = true;
+                        }
+                    }
+                }
+            } catch (e) { console.warn('restore searchParams error', e); }
+
+            updateModalCounters();
+            if (restored) updateNightsLabel();
+            dateModal.classList.add('show');
+        }
+
+        function openModalForEdit() {
+            dateModal.classList.add('show');
+            mainContent.classList.add('locked');
+
+            if (modalFpIn && searchCheckIn) modalFpIn.setDate(searchCheckIn, false);
+            if (modalFpOut && searchCheckOut) {
+                modalFpOut.set('minDate', searchCheckIn || 'today');
+                modalFpOut.setDate(searchCheckOut, false);
+            }
+            modalCheckInDate = searchCheckIn;
+            modalCheckOutDate = searchCheckOut;
+
+            draftAdults = searchAdults;
+            draftChildren = searchChildren;
+            draftInfants = searchInfants;
+            draftPets = searchPets;
+            updateModalCounters();
+            updateNightsLabel();
+        }
+
+        async function refreshList() {
+            await applyFiltersAndSort();
+            highlightedIndex = -1;
+            pendingHighlightIndex = -1;
+            selectedObjectIndex = -1;
+            buildClusters();
+            updateVisibleList();
+            currentPage = 1;
+            renderPage(currentPage);
+            renderPagination();
+        }
+
+        function expandItem(item) {
+            if (Array.isArray(item)) return item.map(i => expandItem(i));
+            if (item.title !== undefined) return item;
+            return {
+                title: item.t || '',
+                price: item.p || 0,
+                guests: item.g || 0,
+                image: item.i || '',
+                lat: item.x || 0,
+                lng: item.y || 0,
+                url: item.u || '#',
+                city: item.c || '',
+                address: item.a || ''
+            };
+        }
+
+        async function loadData() {
+            const files = ['data.json', 'listings.json'];
+            let data = null;
+            for (const file of files) {
+                try {
+                    const response = await fetch(file);
+                    if (response.ok) { data = await response.json(); break; }
+                } catch (e) {}
+            }
+
+            if (data) {
+                allListings = expandItem(data);
+                filteredListings = [...allListings];
+                isDataLoaded = true;
+                await initApp();
+            } else {
+                listContainer.innerHTML = `
+                    <div class="no-results">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Не удалось загрузить данные.</p>
+                    </div>`;
+                resultsCount.textContent = 'Ошибка загрузки';
+            }
+        }
+
+        async function initApp() {
+            if (!allListings.length) {
+                listContainer.innerHTML = `<div class="no-results"><i class="fas fa-database"></i><p>Нет объектов.</p></div>`;
+                return;
+            }
+
+            initMap();
+            initDateModal();
+            updateToggleButton();
+
+            changeDatesBtn.addEventListener('click', openModalForEdit);
+
+            // Клик по кнопке toggle
+            toggleAvailableBtn.addEventListener('click', async function() {
+                showOnlyAvailable = !showOnlyAvailable;
+                updateToggleButton();
+                await refreshList();
+            });
+
+            map.on('moveend', function() {
+                clearTimeout(listUpdateTimeout);
+                listUpdateTimeout = setTimeout(() => {
+                    currentBounds = map.getBounds();
+                    updateVisibleList();
+                    currentPage = 1;
+                    renderPage(currentPage);
+                    renderPagination();
+                }, 300);
+            });
+
+            map.on('zoomend', function() { buildClusters(); });
+
+            applyBtn.addEventListener('click', refreshList);
+
+            resetBtn.addEventListener('click', async function() {
+                sortSelect.value = 'default';
+                priceMin.value = '';
+                priceMax.value = '';
+                showOnlyAvailable = false;
+                updateToggleButton();
+                try { localStorage.removeItem('searchParams'); } catch (e) {}
+                await refreshList();
+            });
+
+            sortSelect.addEventListener('change', refreshList);
+            priceMin.addEventListener('keydown', e => { if (e.key === 'Enter') applyBtn.click(); });
+            priceMax.addEventListener('keydown', e => { if (e.key === 'Enter') applyBtn.click(); });
+
+            listContainer.innerHTML = `
+                <div class="no-results">
+                    <i class="fas fa-calendar-alt"></i>
+                    <p>Выберите даты, чтобы увидеть объекты</p>
+                </div>`;
+        }
+
+        async function applyFiltersAndSort() {
+            let result = [...allListings];
+
+            const neededGuests = searchAdults + searchChildren;
+            if (neededGuests > 0) {
+                result = result.filter(item => item.guests >= neededGuests);
+            }
+
+            const minPrice = parseFloat(priceMin.value);
+            const maxPrice = parseFloat(priceMax.value);
+            if (!isNaN(minPrice)) result = result.filter(item => item.price >= minPrice);
+            if (!isNaN(maxPrice)) result = result.filter(item => item.price <= maxPrice);
+
+            if (searchCheckIn && searchCheckOut && result.length) {
+                showDatesLoading(true);
+                try {
+                    await loadBookingDatesForListings(result);
+                } finally {
+                    showDatesLoading(false);
+                }
+            }
+
+            const sortVal = sortSelect.value;
+            if (sortVal === 'price_asc') result.sort((a, b) => a.price - b.price);
+            else if (sortVal === 'price_desc') result.sort((a, b) => b.price - a.price);
+
+            // Считаем доступные/занятые ДО возможной фильтрации
+            let availableCount = 0;
+            let busyCount = 0;
+            const totalBeforeFilter = result.length;
+
+            if (searchCheckIn && searchCheckOut) {
+                availableCount = result.filter(item => isPropertyAvailable(item, searchCheckIn, searchCheckOut)).length;
+                busyCount = totalBeforeFilter - availableCount;
+            }
+
+            // Если включён режим «только доступные» — оставляем только свободные
+            if (showOnlyAvailable && searchCheckIn && searchCheckOut) {
+                result = result.filter(item => isPropertyAvailable(item, searchCheckIn, searchCheckOut));
+            }
+
+            filteredListings = result;
+
+            if (searchCheckIn && searchCheckOut) {
+                if (showOnlyAvailable) {
+                    resultsCount.innerHTML =
+                        `Показано <strong>${result.length}</strong> доступных · ` +
+                        `занято ${busyCount}`;
+                } else {
+                    resultsCount.innerHTML =
+                        `Найдено <strong>${totalBeforeFilter}</strong> · ` +
+                        `<span style="color:#00a699">свободно ${availableCount}</span> · ` +
+                        `<span style="color:#dc2626">занято ${busyCount}</span>`;
+                }
+            } else {
+                resultsCount.innerHTML = `Найдено <strong>${filteredListings.length}</strong> объектов`;
+            }
+        }
+
+        function updateVisibleList() {
+            if (!map || !isDataLoaded) return;
+            const bounds = map.getBounds();
+            currentBounds = bounds;
+
+            let visible = filteredListings.filter(item => {
+                const lat = parseFloat(item.lat);
+                const lng = parseFloat(item.lng);
+                if (isNaN(lat) || isNaN(lng)) return false;
+                return bounds.contains([lat, lng]);
+            });
+
+            if (selectedObjectIndex !== -1 && visible.length > 0) {
+                const selectedItem = filteredListings[selectedObjectIndex];
+                if (selectedItem) {
+                    const pos = visible.indexOf(selectedItem);
+                    if (pos !== -1) {
+                        visible.splice(pos, 1);
+                        visible.unshift(selectedItem);
+                    }
+                }
+                selectedObjectIndex = -1;
+            }
+
+            visibleListings = visible;
+        }
+
+        function renderPage(page) {
+            if (!visibleListings.length) {
+                listContainer.innerHTML = `
+                    <div class="no-results">
+                        <i class="fas fa-search"></i>
+                        <p>В этой области нет объектов.<br>Переместите карту или измените фильтры.</p>
+                    </div>`;
+                paginationWrap.innerHTML = '';
+                return;
+            }
+
+            totalPages = Math.ceil(visibleListings.length / ITEMS_PER_PAGE);
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+            currentPage = page;
+
+            const start = (page - 1) * ITEMS_PER_PAGE;
+            const end = Math.min(start + ITEMS_PER_PAGE, visibleListings.length);
+            const pageItems = visibleListings.slice(start, end);
+
+            listContainer.innerHTML = '';
+
+            const nights = (searchCheckIn && searchCheckOut)
+                ? Math.round((searchCheckOut - searchCheckIn) / 86400000)
+                : 1;
+
+            const fragment = document.createDocumentFragment();
+            pageItems.forEach(item => {
+                const originalIndex = filteredListings.indexOf(item);
+                const isAvailable = (searchCheckIn && searchCheckOut)
+                    ? isPropertyAvailable(item, searchCheckIn, searchCheckOut)
+                    : true;
+
+                const totalPrice = item.price * nights;
+                const nightsLabel = `${nights} ${pluralize(nights, 'ночь', 'ночи', 'ночей')}`;
+                const locationText = `${escapeHtml(item.city || '')}${item.address ? ', ' + escapeHtml(item.address) : ''}`;
+
+                const innerHtml = `
+                    <div class="listing-card" data-index="${originalIndex}">
+                        <div class="image">
+                            <img src="${escapeHtml(item.image) || 'https://placehold.co/600x400/eee/ccc?text=Нет+фото'}" alt="${escapeHtml(item.title)}" loading="lazy">
+                        </div>
+                        <div class="info">
+                            <div>
+                                <div class="title">${escapeHtml(item.title)}</div>
+                                <div class="location">${locationText}</div>
+                            </div>
+                            <div>
+                                <div class="price">₽${totalPrice.toLocaleString('ru-RU')} <span>/ ${nightsLabel}</span></div>
+                                <div class="price-total">₽${item.price.toLocaleString('ru-RU')} за ночь</div>
+                                <div class="guests">до ${item.guests} гостей</div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                if (isAvailable) {
+                    const a = document.createElement('a');
+                    a.href = buildListingUrl(item);
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    a.className = 'listing-card-link';
+                    a.dataset.index = originalIndex;
+                    a.innerHTML = innerHtml;
+                    fragment.appendChild(a);
+                } else {
+                    const div = document.createElement('div');
+                    div.className = 'listing-card-link disabled';
+                    div.dataset.index = originalIndex;
+                    div.innerHTML = innerHtml;
+                    fragment.appendChild(div);
+                }
+            });
+            listContainer.appendChild(fragment);
+
+            applyHighlightToCurrentList();
+            renderPagination();
+        }
+
+        function renderPagination() {
+            if (visibleListings.length === 0) { paginationWrap.innerHTML = ''; return; }
+            totalPages = Math.ceil(visibleListings.length / ITEMS_PER_PAGE);
+            const current = currentPage;
+            let html = '';
+            html += `<button class="page-btn arrow" data-page="${current - 1}" ${current <= 1 ? 'disabled' : ''}>&lt;</button>`;
+
+            let pages = [];
+            if (totalPages <= 3) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else {
+                if (current <= 2) {
+                    pages = [1, 2, 3];
+                    if (totalPages > 3) pages.push('...');
+                } else if (current >= totalPages - 1) {
+                    pages = ['...', totalPages - 2, totalPages - 1, totalPages];
+                } else {
+                    pages = ['...', current - 1, current, current + 1, '...'];
+                }
+                if (pages[0] === '...' && pages[1] === '...') pages.shift();
+                if (pages[pages.length - 1] === '...' && pages[pages.length - 2] === '...') pages.pop();
+            }
+
+            pages.forEach(p => {
+                if (p === '...') html += `<span class="page-btn dots">…</span>`;
+                else html += `<button class="page-btn ${p === current ? 'active' : ''}" data-page="${p}">${p}</button>`;
+            });
+            html += `<button class="page-btn arrow" data-page="${current + 1}" ${current >= totalPages ? 'disabled' : ''}>&gt;</button>`;
+            html += `<span class="page-info">${current} / ${totalPages}</span>`;
+            paginationWrap.innerHTML = html;
+
+            paginationWrap.querySelectorAll('.page-btn:not(.dots)').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const page = parseInt(this.dataset.page);
+                    if (page && page !== currentPage && page >= 1 && page <= totalPages) {
+                        currentPage = page;
+                        renderPage(currentPage);
+                        listContainer.scrollTop = 0;
+                    }
+                });
+            });
+        }
+
+        function applyHighlightToCurrentList() {
+            if (highlightedIndex === -1 && pendingHighlightIndex === -1) return;
+            const targetIndex = pendingHighlightIndex !== -1 ? pendingHighlightIndex : highlightedIndex;
+            if (targetIndex === -1) return;
+            document.querySelectorAll('.listing-card.highlighted').forEach(el => el.classList.remove('highlighted'));
+            const card = document.querySelector(`.listing-card[data-index="${targetIndex}"]`);
+            if (card) {
+                card.classList.add('highlighted');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                highlightedIndex = targetIndex;
+                if (pendingHighlightIndex !== -1) pendingHighlightIndex = -1;
+            }
+        }
+
+        function initMap() {
+            map = L.map('map', {
+                center: PATTAYA_CENTER,
+                zoom: DEFAULT_ZOOM,
+                zoomControl: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function buildClusters() {
+            if (clusterGroup) {
+                map.removeLayer(clusterGroup);
+                clusterGroup = null;
+            }
+
+            clusterGroup = L.markerClusterGroup({
+                maxClusterRadius: 200,
+                disableClusteringAtZoom: 17,
+                spiderfyOnMaxZoom: false,
+                iconCreateFunction: function(cluster) {
+                    const count = cluster.getChildCount();
+                    let sizeClass = 'marker-cluster-small';
+                    if (count > 50) sizeClass = 'marker-cluster-large';
+                    else if (count > 25) sizeClass = 'marker-cluster-medium';
+                    return L.divIcon({
+                        html: `<div class="marker-cluster ${sizeClass}"><span>${count}</span></div>`,
+                        className: 'marker-cluster',
+                        iconSize: [48, 48],
+                        popupAnchor: [0, -20]
+                    });
+                }
+            });
+
+            const currentZoom = map.getZoom();
+            const showPrice = currentZoom >= 15;
+            const markers = [];
+
+            filteredListings.forEach((item, index) => {
+                const lat = parseFloat(item.lat);
+                const lng = parseFloat(item.lng);
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                const isAvailable = (searchCheckIn && searchCheckOut)
+                    ? isPropertyAvailable(item, searchCheckIn, searchCheckOut)
+                    : true;
+
+                let iconHtml;
+                if (showPrice) {
+                    iconHtml = `<div class="price-marker" style="${!isAvailable ? 'border-color:#999;color:#999;' : ''}">₽${item.price}</div>`;
+                } else {
+                    iconHtml = `<i class="fas fa-map-marker-alt" style="color:${isAvailable ? '#ff385c' : '#999'}; font-size:22px;"></i>`;
+                }
+
+                const icon = L.divIcon({
+                    html: iconHtml,
+                    className: 'custom-marker',
+                    iconSize: showPrice ? [null, null] : [22, 22],
+                    popupAnchor: [0, -18]
+                });
+
+                const nights = (searchCheckIn && searchCheckOut)
+                    ? Math.round((searchCheckOut - searchCheckIn) / 86400000)
+                    : 1;
+                const nightsLabel = `${nights} ${pluralize(nights, 'ночь', 'ночи', 'ночей')}`;
+                const imgSrc = item.image
+                    ? escapeHtml(item.image)
+                    : 'https://placehold.co/300x200/eee/ccc?text=Нет+фото';
+
+                const popupContent = isAvailable
+                    ? `<div class="custom-popup">
+                        <div class="popup-img">
+                            <img src="${imgSrc}" alt="${escapeHtml(item.title)}" loading="lazy">
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-title">${escapeHtml(item.title)}</div>
+                            <div class="popup-price">₽${(item.price * nights).toLocaleString('ru-RU')} <span>/ ${nightsLabel}</span></div>
+                            <div class="popup-pernight">₽${item.price.toLocaleString('ru-RU')} за ночь · до ${item.guests} гостей</div>
+                            <a href="${escapeHtml(buildListingUrl(item))}" class="popup-link" target="_blank" rel="noopener">Подробнее →</a>
+                        </div>
+                    </div>`
+                    : `<div class="custom-popup">
+                        <div class="popup-img">
+                            <img src="${imgSrc}" alt="${escapeHtml(item.title)}" loading="lazy" style="opacity:0.55;filter:grayscale(0.7);">
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-title">${escapeHtml(item.title)}</div>
+                            <div class="popup-price">₽${item.price.toLocaleString('ru-RU')} <span>/ ночь</span></div>
+                            <div class="popup-busy"><i class="fas fa-ban"></i>Занято на выбранные даты</div>
+                        </div>
+                    </div>`;
+
+                const marker = L.marker([lat, lng], { icon, listingData: item }).bindPopup(popupContent, {
+                    maxWidth: 260,
+                    minWidth: 220,
+                    closeButton: true,
+                    autoPan: true,
+                    autoPanPadding: [24, 24]
+                });
+
+                if (isAvailable) {
+                    marker.on('click', function() {
+                        const idx = filteredListings.indexOf(item);
+                        if (idx !== -1) {
+                            pendingHighlightIndex = idx;
+                            highlightCard(idx);
+                            renderPage(currentPage);
+                        }
+                    });
+                }
+
+                markers.push(marker);
+                markerMap[index] = marker;
+            });
+
+            clusterGroup.addLayers(markers);
+            map.addLayer(clusterGroup);
+        }
+
+        function highlightCard(index) {
+            if (highlightedIndex !== -1 && highlightedIndex !== index) {
+                const prev = document.querySelector(`.listing-card[data-index="${highlightedIndex}"]`);
+                if (prev) prev.classList.remove('highlighted');
+            }
+            highlightedIndex = index;
+            applyHighlightToCurrentList();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        loadData();
+    })();
+</script>
+
+<script>
+    (function() {
+        const BASE_URL = 'https://script.google.com/macros/s/AKfycbwu6iYjDr49HMdiyyZKSnaGupRYTR-1vqObxD30GjHCFrX0A3BB9ySwv4b2ZnTKaaKH/exec';
+        const CHECK_INTERVAL = 5000;
+
+        let userID = localStorage.getItem('chat_user_id');
+        if (!userID) {
+            userID = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            localStorage.setItem('chat_user_id', userID);
+        }
+
+        let notifiedIds = new Set();
+        const storedNotified = localStorage.getItem('chat_notified_msgids');
+        if (storedNotified) {
+            try { JSON.parse(storedNotified).forEach(id => notifiedIds.add(id)); } catch (e) {}
+        }
+
+        let unreadCount = 0;
+
+        const fab = document.createElement('button');
+        fab.className = 'chat-fab';
+        fab.innerHTML = `💬<span class="badge hidden" id="chatBadge">0</span>`;
+        fab.onclick = function() { openChatAndClear(); };
+        document.body.appendChild(fab);
+        const badge = fab.querySelector('.badge');
+
+        const toast = document.createElement('div');
+        toast.className = 'chat-toast';
+        toast.innerHTML = `<div class="icon">💬</div><div class="content"><div class="title">Новое сообщение</div><div class="desc">от службы поддержки</div></div><button class="close" id="toastClose">&times;</button>`;
+        document.body.appendChild(toast);
+        const toastClose = toast.querySelector('#toastClose');
+
+        function openChatAndClear() {
+            unreadCount = 0;
+            updateBadge();
+            localStorage.setItem('chat_notified_msgids', JSON.stringify([...notifiedIds]));
+            toast.classList.remove('show');
+            window.open('chat.html', '_blank');
+        }
+
+        function updateBadge() {
+            if (unreadCount > 0) { badge.textContent = unreadCount; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+
+        toastClose.addEventListener('click', function(e) { e.stopPropagation(); toast.classList.remove('show'); });
+        toast.addEventListener('click', function(e) {
+            if (e.target.closest('.close')) return;
+            openChatAndClear();
+        });
+
+        async function checkMessages() {
+            try {
+                const url = BASE_URL + '?userID=' + encodeURIComponent(userID);
+                const resp = await fetch(url, { cache: 'no-cache' });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                if (data.error) return;
+                const messages = data.messages || [];
+                let newManagerMsg = false;
+                messages.forEach(m => {
+                    if (m.userID === 'manager' && m.targetUserID === userID) {
+                        if (!notifiedIds.has(m.msgId)) {
+                            notifiedIds.add(m.msgId);
+                            unreadCount++;
+                            newManagerMsg = true;
+                        }
+                    }
+                });
+                if (newManagerMsg) {
+                    updateBadge();
+                    toast.classList.add('show');
+                    localStorage.setItem('chat_notified_msgids', JSON.stringify([...notifiedIds]));
+                }
+            } catch (err) {}
+        }
+
+        checkMessages();
+        setInterval(checkMessages, CHECK_INTERVAL);
+    })();
+</script>
+
+</body>
+</html>

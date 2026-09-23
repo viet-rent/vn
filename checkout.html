@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Оформление бронирования</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background:#f7f7f7;
+            color:#222;
+            padding:20px;
+        }
+        .container {
+            max-width:900px;
+            margin:0 auto;
+            display:grid;
+            grid-template-columns:1fr 380px;
+            gap:40px;
+            background:white;
+            border-radius:16px;
+            padding:40px;
+            box-shadow:0 6px 16px rgba(0,0,0,0.08);
+        }
+        .back-link {
+            display:inline-block;
+            margin-bottom:20px;
+            color:#ff385c;
+            text-decoration:none;
+            font-weight:500;
+        }
+        .back-link i { margin-right:8px; }
+        h1 { font-size:24px; font-weight:500; margin-bottom:8px; }
+        .order-summary {
+            border:1px solid #ebebeb;
+            border-radius:16px;
+            padding:20px;
+            background:#fafafa;
+        }
+        .order-summary img {
+            width:100%;
+            height:180px;
+            object-fit:cover;
+            border-radius:12px;
+            margin-bottom:12px;
+        }
+        .order-summary .detail-row {
+            display:flex;
+            justify-content:space-between;
+            padding:8px 0;
+            border-bottom:1px solid #ebebeb;
+        }
+        .order-summary .detail-row:last-child {
+            border-bottom:none;
+            font-weight:600;
+            font-size:18px;
+            padding-top:12px;
+        }
+        .detail-label { color:#717171; }
+        .detail-value { font-weight:500; }
+        .info-note {
+            background:#f0f7ff;
+            border-radius:10px;
+            padding:12px 16px;
+            font-size:14px;
+            color:#1a56db;
+            margin-top:12px;
+            border-left:4px solid #1a56db;
+        }
+        .info-note i {
+            margin-right:8px;
+        }
+        
+        .form-group {
+            margin-bottom:20px;
+        }
+        .form-group label {
+            display:block;
+            font-weight:600;
+            font-size:14px;
+            margin-bottom:6px;
+            color:#222;
+        }
+        .form-group input,
+        .form-group textarea {
+            width:100%;
+            padding:12px 16px;
+            border:1px solid #ddd;
+            border-radius:12px;
+            font-size:15px;
+            transition:border-color 0.2s, box-shadow 0.2s;
+            background:white;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline:none;
+            border-color:#ff385c;
+            box-shadow:0 0 0 2px rgba(255,56,92,0.2);
+        }
+        .form-group textarea { min-height:80px; resize:vertical; }
+        .form-row {
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:20px;
+        }
+        .pay-btn {
+            width:100%;
+            padding:16px;
+            background:#ff385c;
+            color:white;
+            border:none;
+            border-radius:12px;
+            font-size:18px;
+            font-weight:600;
+            cursor:pointer;
+            transition:background 0.2s;
+            margin-top:12px;
+        }
+        .pay-btn:hover { background:#e01e4a; }
+        .pay-btn:disabled {
+            opacity:0.6;
+            cursor:not-allowed;
+        }
+        .error-msg {
+            color:#dc2626;
+            font-size:14px;
+            margin-top:4px;
+        }
+        @media (max-width:768px) {
+            .container {
+                grid-template-columns:1fr;
+                padding:20px;
+            }
+            .form-row { grid-template-columns:1fr; }
+        }
+
+        /* === ПРЕЛОУДЕР === */
+        .preloader-overlay {
+            display:none;
+            position:fixed;
+            top:0;
+            left:0;
+            right:0;
+            bottom:0;
+            background:rgba(255,255,255,0.85);
+            backdrop-filter:blur(4px);
+            z-index:999999;
+            align-items:center;
+            justify-content:center;
+            flex-direction:column;
+        }
+        .preloader-overlay.show {
+            display:flex;
+        }
+        .preloader-spinner {
+            width:64px;
+            height:64px;
+            border:4px solid #f0f0f0;
+            border-top:4px solid #ff385c;
+            border-radius:50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .preloader-logo {
+            font-size:24px;
+            font-weight:bold;
+            color:#ff385c;
+            margin-bottom:20px;
+        }
+        .preloader-text {
+            color:#717171;
+            font-size:16px;
+            margin-top:16px;
+            letter-spacing:0.3px;
+        }
+        @keyframes spin {
+            0% { transform:rotate(0deg); }
+            100% { transform:rotate(360deg); }
+        }
+
+        /* ===== СТИЛИ ДЛЯ КНОПКИ ЧАТА (СПРАВА СНИЗУ) ===== */
+        .chat-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff385c, #e01e4a);
+            color: white;
+            border: none;
+            box-shadow: 0 8px 28px rgba(255,56,92,0.5);
+            font-size: 32px;
+            cursor: pointer;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.3s ease,
+                        background 0.3s ease;
+            will-change: transform;
+        }
+        .chat-fab:hover {
+            transform: scale(1.12) rotate(-4deg);
+            box-shadow: 0 12px 36px rgba(255,56,92,0.7);
+            background: linear-gradient(135deg, #ff5a7a, #c01a3e);
+        }
+        .chat-fab:active {
+            transform: scale(0.92);
+        }
+        .chat-fab .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ff2d55;
+            color: white;
+            border-radius: 50%;
+            min-width: 26px;
+            height: 26px;
+            padding: 0 6px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(255,45,85,0.6);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 2px solid white;
+        }
+        .chat-fab .badge.hidden {
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .chat-fab.pulse {
+            animation: fabPulse 0.6s ease 2;
+        }
+        @keyframes fabPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .chat-toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: rgba(26,26,46,0.95);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 18px 24px;
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+            font-family: 'Inter', -apple-system, sans-serif;
+            font-size: 15px;
+            z-index: 99999;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transform: translateX(calc(100% + 40px));
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity 0.4s ease;
+            border-left: 5px solid #ff385c;
+            pointer-events: none;
+            cursor: pointer;
+        }
+        .chat-toast.show {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .chat-toast .icon {
+            font-size: 30px;
+            line-height: 1;
+            background: rgba(255,56,92,0.15);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-toast .content {
+            flex: 1;
+        }
+        .chat-toast .title {
+            font-weight: 600;
+            margin-bottom: 2px;
+            font-size: 16px;
+        }
+        .chat-toast .desc {
+            font-size: 14px;
+            opacity: 0.85;
+        }
+        .chat-toast .close {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #ccc;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 50%;
+            transition: background 0.2s, color 0.2s;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .chat-toast .close:hover {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        @media (max-width: 480px) {
+            .chat-fab {
+                bottom: 20px;
+                right: 20px;
+                width: 56px;
+                height: 56px;
+                font-size: 26px;
+            }
+            .chat-fab .badge {
+                min-width: 22px;
+                height: 22px;
+                font-size: 11px;
+                top: -2px;
+                right: -2px;
+            }
+            .chat-toast {
+                top: 12px;
+                right: 12px;
+                left: 12px;
+                max-width: unset;
+                padding: 14px 18px;
+                font-size: 14px;
+            }
+            .chat-toast .icon {
+                width: 40px;
+                height: 40px;
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-link"><i class="fas fa-arrow-left"></i> Назад к выбору</a>
+    <div class="container" id="app">
+        <div>
+            <h1>Оформление бронирования</h1>
+            <p style="color:#717171; margin-bottom:24px;">Заполните данные для оплаты</p>
+            
+            <form id="checkoutForm" method="POST" action="https://payweb.click/api/request/">
+                <input type="hidden" name="merchant_order_id" id="merchantOrderId">
+                <input type="hidden" name="amount" id="amountField">
+                <input type="hidden" name="use_card_payment" value="RUB">
+                <input type="hidden" name="success_url" value="https://viet-rent.github.io/ru/success.html">
+                <input type="hidden" name="fail_url" value="https://viet-rent.github.io/ru/fail.html">
+                <input type="hidden" name="notice_url" value="https://script.google.com/macros/s/AKfycbwhp6cuv7hKzSTcFY0tB8QwPrw4y_oWwpvBjRf1o0uUReggq12ckyDZ-xbwfoxbqak/exec">
+                <input type="hidden" name="api_key" value="e71366079d95b04228fc6482c503a983b99da2e7b17dd6c56780074d0f7e63a2">
+                <input type="hidden" name="description" id="descriptionField">
+                <input type="hidden" name="customer_name" id="nameField">
+                <input type="hidden" name="customer_email" id="emailField">
+                <input type="hidden" name="customer_phone" id="phoneField">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Имя</label>
+                        <input type="text" id="firstName" placeholder="Иван" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Фамилия</label>
+                        <input type="text" id="lastName" placeholder="Иванов" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="patronymic">Отчество (необязательно)</label>
+                    <input type="text" id="patronymic" placeholder="Иванович">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="example@mail.ru" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Телефон</label>
+                    <input type="tel" id="phone" placeholder="+7 (999) 123-45-67" required>
+                </div>
+                <div class="form-group">
+                    <label for="comment">Комментарий к бронированию (необязательно)</label>
+                    <textarea id="comment" placeholder="Дополнительные пожелания..."></textarea>
+                </div>
+                <button type="submit" class="pay-btn" id="payBtn">Оплатить</button>
+                <div id="formError" class="error-msg" style="margin-top:12px;"></div>
+            </form>
+        </div>
+
+        <div class="order-summary" id="orderSummary">
+            <div style="text-align:center; padding:40px 0; color:#717171;">
+                <i class="fas fa-spinner fa-spin" style="font-size:32px;"></i>
+                <p style="margin-top:12px;">Загрузка данных...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ПРЕЛОУДЕР -->
+    <div class="preloader-overlay" id="preloaderOverlay">
+        <div class="preloader-logo">🏝️🏠VietRent</div>
+        <div class="preloader-spinner"></div>
+        <div class="preloader-text" id="preloaderText">Перенаправление на оплату...</div>
+    </div>
+
+    <script>
+        (function() {
+            // === КОНФИГУРАЦИЯ ===
+            const PAYMENT_CONFIG = {
+                API_URL: "https://payweb.click/api/request/",
+                API_KEY: "e71366079d95b04228fc6482c503a983b99da2e7b17dd6c56780074d0f7e63a2",
+                SUCCESS_URL: "https://viet-rent.github.io/ru/success.html",
+                FAIL_URL: "https://viet-rent.github.io/ru/fail.html",
+                NOTICE_URL: "https://script.google.com/macros/s/AKfycbwhp6cuv7hKzSTcFY0tB8QwPrw4y_oWwpvBjRf1o0uUReggq12ckyDZ-xbwfoxbqak/exec",
+                MIN_ID: 13577888,
+                MAX_ID: 99273812,
+                DISCOUNT_MULTIPLIER: 0.95,
+                MAX_PAYMENT: 99000 // лимит для оплаты
+            };
+
+            function generateMerchantOrderId() {
+                return Math.floor(Math.random() * (PAYMENT_CONFIG.MAX_ID - PAYMENT_CONFIG.MIN_ID + 1)) + PAYMENT_CONFIG.MIN_ID;
+            }
+
+            // === Получаем данные из localStorage ===
+            let bookingData = null;
+            try {
+                const raw = localStorage.getItem('bookingData');
+                if (raw) bookingData = JSON.parse(raw);
+            } catch(e) {}
+
+            const summaryEl = document.getElementById('orderSummary');
+            const payBtn = document.getElementById('payBtn');
+            const form = document.getElementById('checkoutForm');
+            const errorEl = document.getElementById('formError');
+            const preloader = document.getElementById('preloaderOverlay');
+            const preloaderText = document.getElementById('preloaderText');
+
+            // === Отображаем сводку ===
+            function renderSummary(data) {
+                if (!data) {
+                    summaryEl.innerHTML = `
+                        <div style="text-align:center; padding:40px 0; color:#717171;">
+                            <i class="fas fa-exclamation-triangle" style="font-size:32px;"></i>
+                            <p style="margin-top:12px;">Данные о бронировании не найдены.<br>Вернитесь на страницу объекта и выберите даты.</p>
+                            <a href="javascript:history.back()" style="display:inline-block; margin-top:16px; color:#ff385c; text-decoration:underline;">← Назад</a>
+                        </div>
+                    `;
+                    payBtn.disabled = true;
+                    return;
+                }
+
+                const nights = data.nights || 1;
+                const total = data.totalPrice || (data.pricePerNight * nights);
+                let finalTotal = Math.round(total * PAYMENT_CONFIG.DISCOUNT_MULTIPLIER);
+                let paymentAmount = finalTotal;
+
+                // Проверка на превышение лимита
+                let limitMessage = '';
+                if (paymentAmount > PAYMENT_CONFIG.MAX_PAYMENT) {
+                    paymentAmount = PAYMENT_CONFIG.MAX_PAYMENT;
+                    limitMessage = `
+                        <div class="info-note">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Сумма бронирования превышает 99 000 ₽. Для подтверждения достаточно внести <strong>${paymentAmount.toLocaleString()} ₽</strong>. Остаток вы оплатите по прибытии.</span>
+                        </div>
+                    `;
+                }
+
+                // Сохраняем для отправки
+                window._paymentAmount = paymentAmount;
+                window._totalDisplay = finalTotal;
+
+                const guestParts = [];
+                if (data.adults) guestParts.push(`${data.adults} взрослых`);
+                if (data.children) guestParts.push(`${data.children} детей`);
+                if (data.infants) guestParts.push(`${data.infants} младенцев`);
+                if (data.pets) guestParts.push('🐾 с питомцами');
+                const guestString = guestParts.join(', ') || '1 гость';
+
+                summaryEl.innerHTML = `
+                    <img src="${data.image || 'https://placehold.co/600x400/eee/ccc?text=Нет+фото'}" alt="${data.title}">
+                    <h3 style="font-size:18px; margin-bottom:12px;">${data.title}</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Даты</span>
+                        <span class="detail-value">${formatDate(data.checkIn)} – ${formatDate(data.checkOut)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Ночей</span>
+                        <span class="detail-value">${nights}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Гости</span>
+                        <span class="detail-value">${guestString}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Цена за ночь</span>
+                        <span class="detail-value">₽${data.pricePerNight}</span>
+                    </div>
+                    <div class="detail-row" style="font-size:20px; padding-top:12px;">
+                        <span class="detail-label">Итого к оплате</span>
+                        <span class="detail-value">₽${total}</span>
+                    </div>
+                    ${limitMessage}
+                `;
+                payBtn.disabled = false;
+            }
+
+            function formatDate(ymd) {
+                if (!ymd) return '';
+                const parts = ymd.split('-');
+                if (parts.length !== 3) return ymd;
+                return `${parts[2]}.${parts[1]}.${parts[0]}`;
+            }
+
+            renderSummary(bookingData);
+
+            // === Обработка отправки формы ===
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const firstName = document.getElementById('firstName').value.trim();
+                const lastName = document.getElementById('lastName').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const phone = document.getElementById('phone').value.trim();
+
+                if (!firstName || !lastName || !email || !phone) {
+                    errorEl.textContent = 'Пожалуйста, заполните все обязательные поля (Имя, Фамилия, Email, Телефон).';
+                    return;
+                }
+                if (!email.includes('@')) {
+                    errorEl.textContent = 'Введите корректный email.';
+                    return;
+                }
+                if (phone.length < 6) {
+                    errorEl.textContent = 'Введите корректный номер телефона.';
+                    return;
+                }
+
+                if (!bookingData) {
+                    errorEl.textContent = 'Данные бронирования отсутствуют. Вернитесь на страницу объекта.';
+                    return;
+                }
+
+                // Сохраняем данные пользователя
+                const userData = {
+                    firstName: firstName,
+                    lastName: lastName,
+                    patronymic: document.getElementById('patronymic').value.trim(),
+                    email: email,
+                    phone: phone,
+                    comment: document.getElementById('comment').value.trim()
+                };
+                bookingData.guest = userData;
+                localStorage.setItem('bookingData', JSON.stringify(bookingData));
+                localStorage.setItem('lastBooking', JSON.stringify(bookingData));
+
+                const merchantOrderId = generateMerchantOrderId();
+                // Отправляем сумму с учетом лимита
+                const amountToSend = window._paymentAmount || Math.round(bookingData.totalPrice * PAYMENT_CONFIG.DISCOUNT_MULTIPLIER);
+                const description = `${bookingData.title} (${formatDate(bookingData.checkIn)} – ${formatDate(bookingData.checkOut)})`;
+
+                document.getElementById('merchantOrderId').value = merchantOrderId;
+                document.getElementById('amountField').value = amountToSend;
+                document.getElementById('descriptionField').value = description;
+                document.getElementById('nameField').value = `${firstName} ${lastName}`;
+                document.getElementById('emailField').value = email;
+                document.getElementById('phoneField').value = phone;
+
+                preloader.classList.add('show');
+                preloaderText.textContent = 'Перенаправление на оплату...';
+                payBtn.disabled = true;
+
+                setTimeout(() => {
+                    form.submit();
+                }, 300);
+            });
+
+            // Таймаут 120 сек
+            setTimeout(() => {
+                if (preloader.classList.contains('show')) {
+                    preloader.classList.remove('show');
+                    errorEl.textContent = 'Сервис оплаты не отвечает. Попробуйте позже.';
+                    payBtn.disabled = false;
+                }
+            }, 120000);
+        })();
+
+        // ============================================================
+        //  ПЛАВАЮЩАЯ КНОПКА ЧАТА + УВЕДОМЛЕНИЕ (как на listing.php)
+        // ============================================================
+        (function() {
+            const BASE_URL = 'https://script.google.com/macros/s/AKfycbwu6iYjDr49HMdiyyZKSnaGupRYTR-1vqObxD30GjHCFrX0A3BB9ySwv4b2ZnTKaaKH/exec';
+            const CHECK_INTERVAL = 5000;
+
+            let userID = localStorage.getItem('chat_user_id');
+            if (!userID) {
+                userID = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                localStorage.setItem('chat_user_id', userID);
+            }
+
+            let notifiedIds = new Set();
+            const storedNotified = localStorage.getItem('chat_notified_msgids');
+            if (storedNotified) {
+                try {
+                    JSON.parse(storedNotified).forEach(id => notifiedIds.add(id));
+                } catch (e) {}
+            }
+
+            let unreadCount = 0;
+
+            // Кнопка чата
+            const fab = document.createElement('button');
+            fab.className = 'chat-fab';
+            fab.innerHTML = `💬<span class="badge hidden" id="chatBadge">0</span>`;
+            fab.setAttribute('aria-label', 'Открыть чат поддержки');
+            fab.onclick = function() {
+                openChatAndClear();
+            };
+            document.body.appendChild(fab);
+            const badge = fab.querySelector('.badge');
+
+            // Тоast-уведомление
+            const toast = document.createElement('div');
+            toast.className = 'chat-toast';
+            toast.innerHTML = `
+                <div class="icon">💬</div>
+                <div class="content">
+                    <div class="title">Новое сообщение</div>
+                    <div class="desc">от службы поддержки</div>
+                </div>
+                <button class="close" id="toastClose">&times;</button>
+            `;
+            document.body.appendChild(toast);
+            const toastClose = toast.querySelector('#toastClose');
+
+            // Функция открытия чата и сброса уведомлений
+            function openChatAndClear() {
+                unreadCount = 0;
+                updateBadge();
+                localStorage.setItem('chat_notified_msgids', JSON.stringify([...notifiedIds]));
+                hideToast();
+                window.open('chat.html', '_blank');
+            }
+
+            // Функция показа уведомления (без автоматического скрытия)
+            function showToast() {
+                toast.classList.add('show');
+            }
+
+            function hideToast() {
+                toast.classList.remove('show');
+            }
+
+            // Обновление бейджа
+            function updateBadge() {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
+            // Клик по крестику – скрываем тост
+            toastClose.addEventListener('click', function(e) {
+                e.stopPropagation();
+                hideToast();
+            });
+
+            // Клик по самому тосту (кроме крестика) – открываем чат
+            toast.addEventListener('click', function(e) {
+                if (e.target.closest('.close')) return;
+                openChatAndClear();
+            });
+
+            // Проверка новых сообщений
+            async function checkMessages() {
+                try {
+                    const url = BASE_URL + '?userID=' + encodeURIComponent(userID);
+                    const resp = await fetch(url, { cache: 'no-cache' });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    const data = await resp.json();
+                    if (data.error) { console.warn('API error:', data.error); return; }
+
+                    const messages = data.messages || [];
+                    let newManagerMsg = false;
+
+                    messages.forEach(m => {
+                        if (m.userID === 'manager' && m.targetUserID === userID) {
+                            if (!notifiedIds.has(m.msgId)) {
+                                notifiedIds.add(m.msgId);
+                                unreadCount++;
+                                newManagerMsg = true;
+                            }
+                        }
+                    });
+
+                    if (newManagerMsg) {
+                        updateBadge();
+                        showToast();
+                        fab.classList.add('pulse');
+                        setTimeout(() => fab.classList.remove('pulse'), 1200);
+                        localStorage.setItem('chat_notified_msgids', JSON.stringify([...notifiedIds]));
+                    }
+                } catch (err) {
+                    console.warn('Ошибка при проверке чата:', err.message);
+                }
+            }
+
+            // Первый запуск и периодическая проверка
+            checkMessages();
+            setInterval(checkMessages, CHECK_INTERVAL);
+
+            // При закрытии страницы сохраняем состояние
+            window.addEventListener('beforeunload', function() {
+                localStorage.setItem('chat_notified_msgids', JSON.stringify([...notifiedIds]));
+            });
+        })();
+    </script>
+</body>
+</html>
