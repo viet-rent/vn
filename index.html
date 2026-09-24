@@ -31,10 +31,33 @@
             background: white; padding: 16px 40px;
             border-bottom: 1px solid #ebebeb;
             display: flex; justify-content: space-between; align-items: center;
+            gap: 16px;
         }
-        .logo { font-size: 24px; font-weight: bold; color: #ff385c; }
+        .logo { font-size: 24px; font-weight: bold; color: #ff385c; flex-shrink: 0; }
+        .header-controls { flex-shrink: 0; }
         .header-controls .city { font-size: 14px; color: #717171; }
         .header-controls .city i { margin-right: 6px; color: #ff385c; }
+
+        /* === НАДПИСЬ В ХЕДЕРЕ (десктоп) === */
+        .availability-info-header {
+            flex: 1;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 16px;
+            font-size: 13px;
+            color: #717171;
+            line-height: 1.35;
+            text-align: center;
+        }
+        .availability-info-header.show {
+            display: flex;
+        }
+        .availability-info-header i {
+            color: #ff385c;
+            flex-shrink: 0;
+        }
 
         .main {
             flex: 1; min-height: 0;
@@ -118,7 +141,7 @@
         }
         .results-count strong { color: #222; font-weight: 600; }
 
-        /* === ИНФО-БЛОК О ЗАНЯТЫХ ОБЪЕКТАХ === */
+        /* === ИНФО-БЛОК О ЗАНЯТЫХ ОБЪЕКТАХ (в списке — для мобильной) === */
         .availability-info {
             display: none;
             background: #fff5f7;
@@ -167,7 +190,6 @@
             font-size: 13px; font-weight: 600; color: #717171; min-width: 50px;
         }
 
-        /* === КНОПКА "ПОКАЗАТЬ ДОСТУПНЫЕ / ВСЕ" === */
         .filter-row-available {
             margin-top: 8px;
         }
@@ -237,7 +259,6 @@
         .listing-card .info .guests { font-size: 12px; color: #717171; margin-top: 2px; }
         .listing-card.highlighted { border-color: #ff385c; box-shadow: 0 0 0 2px rgba(255,56,92,0.2); }
 
-        /* === ЗАНЯТЫЕ ОБЪЕКТЫ: КЛИКАБЕЛЬНЫ, НО ПОДСВЕЧЕНЫ === */
         .listing-card-link.disabled { cursor: pointer; }
         .listing-card-link.disabled .listing-card {
             position: relative; opacity: 0.78; filter: grayscale(0.5);
@@ -627,6 +648,16 @@
             padding: 4px 8px; border-radius: 50%;
         }
 
+        /* === Показываем/скрываем нужный вариант надписи по разрешению === */
+        @media (min-width: 769px) {
+            /* На десктопе — только в хедере, в списке скрыта */
+            .availability-info.show { display: none; }
+        }
+        @media (max-width: 768px) {
+            /* На мобильной — только в списке, в хедере скрыта */
+            .availability-info-header.show { display: none; }
+        }
+
         @media (max-width: 768px) {
             .header { padding: 12px 16px; }
             .logo { font-size: 20px; }
@@ -838,6 +869,7 @@
 
 <header class="header">
     <a href="../" class="logo">🏝️🏠VietRent</a>
+    <div class="availability-info-header" id="availabilityInfoHeader"></div>
     <div class="header-controls">
         <span class="city"><i class="fas fa-map-marker-alt"></i>Фукуок, Вьетнам</span>
     </div>
@@ -878,7 +910,6 @@
                 <button class="btn-reset" id="resetFilters">Сброс</button>
             </div>
 
-            <!-- Кнопка переключения: показать только доступные / показать все -->
             <div class="filter-row filter-row-available">
                 <button class="btn-toggle-available" id="toggleAvailableBtn" type="button">
                     <i class="fas fa-filter"></i><span id="toggleAvailableText">Показать доступные</span>
@@ -984,7 +1015,7 @@
         let totalPages = 1;
         let isDataLoaded = false;
 
-        // Новое: флаг «показывать только доступные»
+        // Флаг «показывать только доступные»
         let showOnlyAvailable = false;
 
         let searchCheckIn = null;
@@ -1007,6 +1038,7 @@
         const listContainer = document.getElementById('listContainer');
         const resultsCount = document.getElementById('resultsCount');
         const availabilityInfo = document.getElementById('availabilityInfo');
+        const availabilityInfoHeader = document.getElementById('availabilityInfoHeader');
         const paginationWrap = document.getElementById('paginationWrap');
         const sortSelect = document.getElementById('sortSelect');
         const priceMin = document.getElementById('priceMin');
@@ -1138,7 +1170,6 @@
             datesBarText.textContent = buildCompactParamsString();
         }
 
-        // Обновление вида кнопки toggle
         function updateToggleButton() {
             if (showOnlyAvailable) {
                 toggleAvailableBtn.classList.add('active');
@@ -1395,7 +1426,6 @@
 
             changeDatesBtn.addEventListener('click', openModalForEdit);
 
-            // Клик по кнопке toggle
             toggleAvailableBtn.addEventListener('click', async function() {
                 showOnlyAvailable = !showOnlyAvailable;
                 updateToggleButton();
@@ -1464,7 +1494,6 @@
             if (sortVal === 'price_asc') result.sort((a, b) => a.price - b.price);
             else if (sortVal === 'price_desc') result.sort((a, b) => b.price - a.price);
 
-            // Считаем доступные/занятые ДО возможной фильтрации
             let availableCount = 0;
             let busyCount = 0;
             const totalBeforeFilter = result.length;
@@ -1474,7 +1503,6 @@
                 busyCount = totalBeforeFilter - availableCount;
             }
 
-            // Если включён режим «только доступные» — оставляем только свободные
             if (showOnlyAvailable && searchCheckIn && searchCheckOut) {
                 result = result.filter(item => isPropertyAvailable(item, searchCheckIn, searchCheckOut));
             }
@@ -1493,24 +1521,33 @@
                         `<span style="color:#dc2626">занято ${busyCount}</span>`;
                 }
 
-                // Информационный блок, если есть занятые объекты
+                // Информационная надпись о занятых объектах
                 if (busyCount > 0 && !showOnlyAvailable) {
+                    const infoMsg = `Если объект занят, свяжитесь с поддержкой, т.к. многие владельцы оставляют часть дат для продажи по завышенной цене.`;
+
                     availabilityInfo.classList.add('show');
-                    availabilityInfo.innerHTML =
-                        `<i class="fas fa-info-circle"></i>` +
-                        `Некоторые объекты <strong>заняты</strong> на выбранные даты. ` +
-                        `Вы всё равно можете открыть их карточку и ` +
-                        `<a href="chat.html" target="_blank" rel="noopener">уточнить у владельца</a> ` +
-                        `возможность брони через чат поддержки — ` +
-                        `многие владельцы оставляют часть дат себе для продажи по повышенному тарифу.`;
+                    availabilityInfo.innerHTML = `<i class="fas fa-info-circle"></i>${infoMsg}`;
+
+                    if (availabilityInfoHeader) {
+                        availabilityInfoHeader.classList.add('show');
+                        availabilityInfoHeader.innerHTML = `<i class="fas fa-info-circle"></i><span>${infoMsg}</span>`;
+                    }
                 } else {
                     availabilityInfo.classList.remove('show');
                     availabilityInfo.innerHTML = '';
+                    if (availabilityInfoHeader) {
+                        availabilityInfoHeader.classList.remove('show');
+                        availabilityInfoHeader.innerHTML = '';
+                    }
                 }
             } else {
                 resultsCount.innerHTML = `Найдено <strong>${filteredListings.length}</strong> объектов`;
                 availabilityInfo.classList.remove('show');
                 availabilityInfo.innerHTML = '';
+                if (availabilityInfoHeader) {
+                    availabilityInfoHeader.classList.remove('show');
+                    availabilityInfoHeader.innerHTML = '';
+                }
             }
         }
 
@@ -1601,7 +1638,6 @@
                         </div>
                     </div>`;
 
-                // И доступные, и занятые — это <a>, чтобы пользователь мог открыть страницу объекта.
                 const a = document.createElement('a');
                 a.href = buildListingUrl(item);
                 a.target = '_blank';
@@ -1778,7 +1814,6 @@
                     autoPanPadding: [24, 24]
                 });
 
-                // Кликабельны все маркеры (и доступные, и занятые) — подсвечиваем соответствующую карточку
                 marker.on('click', function() {
                     const idx = filteredListings.indexOf(item);
                     if (idx !== -1) {
