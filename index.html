@@ -38,27 +38,6 @@
         .header-controls .city { font-size: 14px; color: #717171; }
         .header-controls .city i { margin-right: 6px; color: #ff385c; }
 
-        /* === НАДПИСЬ В ХЕДЕРЕ (десктоп) === */
-        .availability-info-header {
-            flex: 1;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 0 16px;
-            font-size: 13px;
-            color: #717171;
-            line-height: 1.35;
-            text-align: center;
-        }
-        .availability-info-header.show {
-            display: flex;
-        }
-        .availability-info-header i {
-            color: #ff385c;
-            flex-shrink: 0;
-        }
-
         .main {
             flex: 1; min-height: 0;
             display: flex; flex-direction: row;
@@ -140,25 +119,6 @@
             margin-bottom: 12px;
         }
         .results-count strong { color: #222; font-weight: 600; }
-
-        /* === ИНФО-БЛОК О ЗАНЯТЫХ ОБЪЕКТАХ (в списке — для мобильной) === */
-        .availability-info {
-            display: none;
-            background: #fff5f7;
-            border: 1px solid #ffe0e6;
-            border-radius: 10px;
-            padding: 10px 12px;
-            font-size: 12px;
-            color: #222;
-            margin-bottom: 12px;
-            line-height: 1.45;
-        }
-        .availability-info.show { display: block; }
-        .availability-info i { color: #ff385c; margin-right: 6px; }
-        .availability-info a {
-            color: #ff385c; font-weight: 600;
-            text-decoration: underline; cursor: pointer;
-        }
 
         .filters-panel .filter-row {
             display: flex; gap: 8px; margin-bottom: 10px;
@@ -603,6 +563,80 @@
         .dates-loading-overlay span { font-size: 14px; color: #555; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* === ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ О ЗАНЯТЫХ ОБЪЕКТАХ === */
+        .busy-toast {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 340px;
+            max-width: calc(100vw - 32px);
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 5px solid #ff385c;
+            padding: 16px 18px 16px 16px;
+            z-index: 99998;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            transform: translateY(150%);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity 0.3s ease;
+        }
+        .busy-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .busy-toast .busy-toast-icon {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff5f7;
+            color: #ff385c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .busy-toast .busy-toast-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .busy-toast .busy-toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+        .busy-toast .busy-toast-text {
+            font-size: 13px;
+            color: #717171;
+            line-height: 1.45;
+        }
+        .busy-toast .busy-toast-close {
+            flex-shrink: 0;
+            background: transparent;
+            border: none;
+            color: #999;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+            align-self: flex-start;
+            margin-top: -2px;
+        }
+        .busy-toast .busy-toast-close:hover {
+            background: #f0f0f0;
+            color: #222;
+        }
+
         .chat-fab {
             position: fixed; bottom: 30px; right: 30px;
             width: 68px; height: 68px; border-radius: 50%;
@@ -646,16 +680,6 @@
             background: rgba(255,255,255,0.1); border: none;
             color: #ccc; font-size: 20px; cursor: pointer;
             padding: 4px 8px; border-radius: 50%;
-        }
-
-        /* === Показываем/скрываем нужный вариант надписи по разрешению === */
-        @media (min-width: 769px) {
-            /* На десктопе — только в хедере, в списке скрыта */
-            .availability-info.show { display: none; }
-        }
-        @media (max-width: 768px) {
-            /* На мобильной — только в списке, в хедере скрыта */
-            .availability-info-header.show { display: none; }
         }
 
         @media (max-width: 768px) {
@@ -755,13 +779,6 @@
                 letter-spacing: -0.2px;
             }
 
-            .availability-info {
-                font-size: 10px;
-                padding: 6px 8px;
-                margin-bottom: 6px;
-                border-radius: 6px;
-            }
-
             .map-panel { height: 45vh; width: 100%; flex: none; }
 
             .leaflet-popup-content { width: 210px !important; }
@@ -840,6 +857,19 @@
 
             .chat-fab { bottom: 16px; right: 16px; width: 56px; height: 56px; font-size: 26px; }
 
+            .busy-toast {
+                right: 12px;
+                left: 12px;
+                bottom: 90px;
+                width: auto;
+                max-width: none;
+                padding: 12px 14px 12px 12px;
+                border-radius: 14px;
+            }
+            .busy-toast .busy-toast-icon { width: 34px; height: 34px; font-size: 15px; }
+            .busy-toast .busy-toast-title { font-size: 13px; }
+            .busy-toast .busy-toast-text { font-size: 12px; }
+
             .flatpickr-calendar {
                 position: fixed !important;
                 left: 50vw !important;
@@ -869,7 +899,6 @@
 
 <header class="header">
     <a href="../" class="logo">🏝️🏠VietRent</a>
-    <div class="availability-info-header" id="availabilityInfoHeader"></div>
     <div class="header-controls">
         <span class="city"><i class="fas fa-map-marker-alt"></i>Фукуок, Вьетнам</span>
     </div>
@@ -888,7 +917,6 @@
             </div>
 
             <div class="results-count" id="resultsCount">Выберите даты</div>
-            <div class="availability-info" id="availabilityInfo"></div>
 
             <div class="filter-row">
                 <span class="filter-label">Сорт.</span>
@@ -926,6 +954,16 @@
     <div class="map-panel">
         <div id="map"></div>
     </div>
+</div>
+
+<!-- Всплывающее уведомление о занятых объектах -->
+<div class="busy-toast" id="busyToast">
+    <div class="busy-toast-icon"><i class="fas fa-info-circle"></i></div>
+    <div class="busy-toast-body">
+        <div class="busy-toast-title">Некоторые объекты заняты</div>
+        <div class="busy-toast-text">Если объект занят, свяжитесь с поддержкой, т.к. многие владельцы оставляют часть дат для продажи по завышенной цене.</div>
+    </div>
+    <button class="busy-toast-close" id="busyToastClose" aria-label="Закрыть">&times;</button>
 </div>
 
 <div class="dates-loading-overlay" id="datesLoading">
@@ -1037,8 +1075,6 @@
         const listWrapper = document.getElementById('listWrapper');
         const listContainer = document.getElementById('listContainer');
         const resultsCount = document.getElementById('resultsCount');
-        const availabilityInfo = document.getElementById('availabilityInfo');
-        const availabilityInfoHeader = document.getElementById('availabilityInfoHeader');
         const paginationWrap = document.getElementById('paginationWrap');
         const sortSelect = document.getElementById('sortSelect');
         const priceMin = document.getElementById('priceMin');
@@ -1054,6 +1090,12 @@
         const changeDatesBtn = document.getElementById('changeDatesBtn');
         const toggleAvailableBtn = document.getElementById('toggleAvailableBtn');
         const toggleAvailableText = document.getElementById('toggleAvailableText');
+
+        const busyToast = document.getElementById('busyToast');
+        const busyToastClose = document.getElementById('busyToastClose');
+        const BUSY_TOAST_KEY = 'busyToastClosedAt';
+        // Скрывать уведомление на 24 часа после закрытия
+        const BUSY_TOAST_HIDE_MS = 24 * 60 * 60 * 1000;
 
         function showDatesLoading(show) {
             if (datesLoadingEl) datesLoadingEl.classList.toggle('show', show);
@@ -1180,6 +1222,35 @@
                 toggleAvailableText.textContent = 'Показать доступные';
                 toggleAvailableBtn.querySelector('i').className = 'fas fa-filter';
             }
+        }
+
+        // ===== Управление всплывающим уведомлением =====
+        function canShowBusyToast() {
+            try {
+                const closedAt = parseInt(localStorage.getItem(BUSY_TOAST_KEY) || '0', 10);
+                if (!closedAt) return true;
+                return (Date.now() - closedAt) > BUSY_TOAST_HIDE_MS;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        function showBusyToast() {
+            if (!canShowBusyToast()) return;
+            busyToast.classList.add('show');
+        }
+
+        function hideBusyToast(saveClosed) {
+            busyToast.classList.remove('show');
+            if (saveClosed) {
+                try { localStorage.setItem(BUSY_TOAST_KEY, String(Date.now())); } catch (e) {}
+            }
+        }
+
+        if (busyToastClose) {
+            busyToastClose.addEventListener('click', function() {
+                hideBusyToast(true);
+            });
         }
 
         function updateModalCounters() {
@@ -1521,33 +1592,15 @@
                         `<span style="color:#dc2626">занято ${busyCount}</span>`;
                 }
 
-                // Информационная надпись о занятых объектах
+                // Всплывающее уведомление о занятых объектах
                 if (busyCount > 0 && !showOnlyAvailable) {
-                    const infoMsg = `Если объект занят, свяжитесь с поддержкой, т.к. многие владельцы оставляют часть дат для продажи по завышенной цене.`;
-
-                    availabilityInfo.classList.add('show');
-                    availabilityInfo.innerHTML = `<i class="fas fa-info-circle"></i>${infoMsg}`;
-
-                    if (availabilityInfoHeader) {
-                        availabilityInfoHeader.classList.add('show');
-                        availabilityInfoHeader.innerHTML = `<i class="fas fa-info-circle"></i><span>${infoMsg}</span>`;
-                    }
+                    showBusyToast();
                 } else {
-                    availabilityInfo.classList.remove('show');
-                    availabilityInfo.innerHTML = '';
-                    if (availabilityInfoHeader) {
-                        availabilityInfoHeader.classList.remove('show');
-                        availabilityInfoHeader.innerHTML = '';
-                    }
+                    hideBusyToast(false);
                 }
             } else {
                 resultsCount.innerHTML = `Найдено <strong>${filteredListings.length}</strong> объектов`;
-                availabilityInfo.classList.remove('show');
-                availabilityInfo.innerHTML = '';
-                if (availabilityInfoHeader) {
-                    availabilityInfoHeader.classList.remove('show');
-                    availabilityInfoHeader.innerHTML = '';
-                }
+                hideBusyToast(false);
             }
         }
 
