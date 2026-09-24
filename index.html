@@ -118,6 +118,25 @@
         }
         .results-count strong { color: #222; font-weight: 600; }
 
+        /* === ИНФО-БЛОК О ЗАНЯТЫХ ОБЪЕКТАХ === */
+        .availability-info {
+            display: none;
+            background: #fff5f7;
+            border: 1px solid #ffe0e6;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #222;
+            margin-bottom: 12px;
+            line-height: 1.45;
+        }
+        .availability-info.show { display: block; }
+        .availability-info i { color: #ff385c; margin-right: 6px; }
+        .availability-info a {
+            color: #ff385c; font-weight: 600;
+            text-decoration: underline; cursor: pointer;
+        }
+
         .filters-panel .filter-row {
             display: flex; gap: 8px; margin-bottom: 10px;
             flex-wrap: wrap; align-items: center;
@@ -218,13 +237,15 @@
         .listing-card .info .guests { font-size: 12px; color: #717171; margin-top: 2px; }
         .listing-card.highlighted { border-color: #ff385c; box-shadow: 0 0 0 2px rgba(255,56,92,0.2); }
 
-        .listing-card-link.disabled { cursor: not-allowed; }
+        /* === ЗАНЯТЫЕ ОБЪЕКТЫ: КЛИКАБЕЛЬНЫ, НО ПОДСВЕЧЕНЫ === */
+        .listing-card-link.disabled { cursor: pointer; }
         .listing-card-link.disabled .listing-card {
-            position: relative; opacity: 0.5; filter: grayscale(0.7);
-            cursor: not-allowed;
+            position: relative; opacity: 0.78; filter: grayscale(0.5);
+            cursor: pointer;
+            border-color: #f0d0d0;
         }
         .listing-card-link.disabled .listing-card:hover {
-            transform: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         .listing-card-link.disabled .listing-card::after {
             content: "Занято";
@@ -233,6 +254,13 @@
             font-size: 10px; font-weight: 700;
             padding: 3px 8px; border-radius: 6px;
             letter-spacing: 0.3px; z-index: 2; white-space: nowrap;
+        }
+        .listing-card-link.disabled .listing-card .busy-hint {
+            display: block;
+            font-size: 11px;
+            color: #dc2626;
+            margin-top: 3px;
+            font-weight: 500;
         }
 
         .map-panel { flex: 1; height: 100%; background: #e5e5e5; }
@@ -696,6 +724,13 @@
                 letter-spacing: -0.2px;
             }
 
+            .availability-info {
+                font-size: 10px;
+                padding: 6px 8px;
+                margin-bottom: 6px;
+                border-radius: 6px;
+            }
+
             .map-panel { height: 45vh; width: 100%; flex: none; }
 
             .leaflet-popup-content { width: 210px !important; }
@@ -821,6 +856,7 @@
             </div>
 
             <div class="results-count" id="resultsCount">Выберите даты</div>
+            <div class="availability-info" id="availabilityInfo"></div>
 
             <div class="filter-row">
                 <span class="filter-label">Сорт.</span>
@@ -970,6 +1006,7 @@
         const listWrapper = document.getElementById('listWrapper');
         const listContainer = document.getElementById('listContainer');
         const resultsCount = document.getElementById('resultsCount');
+        const availabilityInfo = document.getElementById('availabilityInfo');
         const paginationWrap = document.getElementById('paginationWrap');
         const sortSelect = document.getElementById('sortSelect');
         const priceMin = document.getElementById('priceMin');
@@ -1455,8 +1492,25 @@
                         `<span style="color:#00a699">свободно ${availableCount}</span> · ` +
                         `<span style="color:#dc2626">занято ${busyCount}</span>`;
                 }
+
+                // Информационный блок, если есть занятые объекты
+                if (busyCount > 0 && !showOnlyAvailable) {
+                    availabilityInfo.classList.add('show');
+                    availabilityInfo.innerHTML =
+                        `<i class="fas fa-info-circle"></i>` +
+                        `Некоторые объекты <strong>заняты</strong> на выбранные даты. ` +
+                        `Вы всё равно можете открыть их карточку и ` +
+                        `<a href="chat.html" target="_blank" rel="noopener">уточнить у владельца</a> ` +
+                        `возможность брони через чат поддержки — ` +
+                        `многие владельцы оставляют часть дат себе для продажи по повышенному тарифу.`;
+                } else {
+                    availabilityInfo.classList.remove('show');
+                    availabilityInfo.innerHTML = '';
+                }
             } else {
                 resultsCount.innerHTML = `Найдено <strong>${filteredListings.length}</strong> объектов`;
+                availabilityInfo.classList.remove('show');
+                availabilityInfo.innerHTML = '';
             }
         }
 
@@ -1524,6 +1578,10 @@
                 const nightsLabel = `${nights} ${pluralize(nights, 'ночь', 'ночи', 'ночей')}`;
                 const locationText = `${escapeHtml(item.city || '')}${item.address ? ', ' + escapeHtml(item.address) : ''}`;
 
+                const busyHint = !isAvailable
+                    ? `<div class="busy-hint"><i class="fas fa-comment-dots"></i> Нажмите, чтобы уточнить занятость в чате</div>`
+                    : '';
+
                 const innerHtml = `
                     <div class="listing-card" data-index="${originalIndex}">
                         <div class="image">
@@ -1538,26 +1596,20 @@
                                 <div class="price">₽${totalPrice.toLocaleString('ru-RU')} <span>/ ${nightsLabel}</span></div>
                                 <div class="price-total">₽${item.price.toLocaleString('ru-RU')} за ночь</div>
                                 <div class="guests">до ${item.guests} гостей</div>
+                                ${busyHint}
                             </div>
                         </div>
                     </div>`;
 
-                if (isAvailable) {
-                    const a = document.createElement('a');
-                    a.href = buildListingUrl(item);
-                    a.target = '_blank';
-                    a.rel = 'noopener';
-                    a.className = 'listing-card-link';
-                    a.dataset.index = originalIndex;
-                    a.innerHTML = innerHtml;
-                    fragment.appendChild(a);
-                } else {
-                    const div = document.createElement('div');
-                    div.className = 'listing-card-link disabled';
-                    div.dataset.index = originalIndex;
-                    div.innerHTML = innerHtml;
-                    fragment.appendChild(div);
-                }
+                // И доступные, и занятые — это <a>, чтобы пользователь мог открыть страницу объекта.
+                const a = document.createElement('a');
+                a.href = buildListingUrl(item);
+                a.target = '_blank';
+                a.rel = 'noopener';
+                a.className = 'listing-card-link' + (isAvailable ? '' : ' disabled');
+                a.dataset.index = originalIndex;
+                a.innerHTML = innerHtml;
+                fragment.appendChild(a);
             });
             listContainer.appendChild(fragment);
 
@@ -1714,6 +1766,7 @@
                             <div class="popup-title">${escapeHtml(item.title)}</div>
                             <div class="popup-price">₽${item.price.toLocaleString('ru-RU')} <span>/ ночь</span></div>
                             <div class="popup-busy"><i class="fas fa-ban"></i>Занято на выбранные даты</div>
+                            <a href="${escapeHtml(buildListingUrl(item))}" class="popup-link" target="_blank" rel="noopener">Уточнить занятость →</a>
                         </div>
                     </div>`;
 
@@ -1725,16 +1778,15 @@
                     autoPanPadding: [24, 24]
                 });
 
-                if (isAvailable) {
-                    marker.on('click', function() {
-                        const idx = filteredListings.indexOf(item);
-                        if (idx !== -1) {
-                            pendingHighlightIndex = idx;
-                            highlightCard(idx);
-                            renderPage(currentPage);
-                        }
-                    });
-                }
+                // Кликабельны все маркеры (и доступные, и занятые) — подсвечиваем соответствующую карточку
+                marker.on('click', function() {
+                    const idx = filteredListings.indexOf(item);
+                    if (idx !== -1) {
+                        pendingHighlightIndex = idx;
+                        highlightCard(idx);
+                        renderPage(currentPage);
+                    }
+                });
 
                 markers.push(marker);
                 markerMap[index] = marker;
